@@ -1,0 +1,35 @@
+name: twinmart_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  
+  # Firebase Core and Services
+  firebase_core: ^3.2.0
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.1.0
+
+  # Utility and Logic Packages
+  intl: ^0.19.0           # ADDED: Required for DateFormat in admin_transactions.dart
+  provider: ^6.1.1        # For state management across the app
+  
+  # Feature Packages
+  mobile_scanner: ^5.2.1  # For the Scan & Shop feature
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  # If you plan to use custom 3D icons for TwinMart, uncomment and add them below
+  # assets:
+  #   - assets/images/
