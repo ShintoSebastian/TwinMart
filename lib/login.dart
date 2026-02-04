@@ -4,8 +4,9 @@ import 'signup.dart';
 import 'main_wrapper.dart';
 import 'main.dart';
 import 'admin_dashboard.dart';
-import 'intro_page.dart'; // ✅ ADDED
+import 'intro_page.dart';
 import 'animated_route.dart';
+import 'forgot_password_screen.dart'; // ✅ Ensure this file is created
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,6 +26,14 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // ✅ New method to handle forgot password navigation
+  void _navigateToForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
   }
 
   @override
@@ -192,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const Text("Password",
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
         TextButton(
-          onPressed: () {},
+          onPressed: _navigateToForgotPassword, // ✅ Updated to navigate to reset screen
           child: Text("Forgot password?",
               style: TextStyle(
                   color: green,
@@ -250,7 +259,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // 🔐 ADMIN LOGIN
     if (email == "admin@gmail.com" && password == "admin") {
       setState(() => _isLoading = false);
 
@@ -262,7 +270,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 👤 NORMAL USER LOGIN
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
@@ -271,12 +278,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // ✅ UPDATED NAVIGATION
       Navigator.pushAndRemoveUntil(
-  context,
-  animatedPageRoute(const IntroPage()),
-  (route) => false,
-);
+        context,
+        animatedPageRoute(const IntroPage()),
+        (route) => false,
+      );
 
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
