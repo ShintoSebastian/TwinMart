@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class BudgetScreen extends StatefulWidget {
-  const BudgetScreen({super.key});
+  // 1. Added callback to notify MainWrapper to change the tab index
+  final VoidCallback onBackToDashboard; 
+  
+  const BudgetScreen({super.key, required this.onBackToDashboard});
 
   @override
   State<BudgetScreen> createState() => _BudgetScreenState();
@@ -10,18 +13,16 @@ class BudgetScreen extends StatefulWidget {
 class _BudgetScreenState extends State<BudgetScreen> {
   // --- STATE DATA ---
   double totalBudget = 5000.0;
-  double originalMonthlyBudget = 5000.0; // Locked reference for 50% increase cap
+  double originalMonthlyBudget = 5000.0; 
   double spent = 2890.0;
-  int editsRemaining = 2; // Strict limit: Edit only twice a month
+  int editsRemaining = 2; 
   
   final TextEditingController _budgetController = TextEditingController();
 
-  // Helper calculations for high-fidelity card
   double get remaining => totalBudget - spent;
   double get progressValue => (spent / totalBudget).clamp(0.0, 1.0);
-  double get maxIncreaseAllowed => originalMonthlyBudget * 0.5; // Only 50% can add
+  double get maxIncreaseAllowed => originalMonthlyBudget * 0.5; 
 
-  // Split percentages matching your exact requirement
   Map<String, double> splitPercentages = {
     'Groceries': 35.0,
     'Food & Dining': 26.0,
@@ -46,9 +47,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     'Entertainment': const Color(0xFF1DB98A),
   };
 
-  // --- LOGIC: CONTROLLED EDIT DIALOG ---
   void _showEditBudgetDialog() {
-    // 1. Check Monthly Edit Limit
     if (editsRemaining <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No budget edits remaining for this month.")),
@@ -85,7 +84,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
               double? newValue = double.tryParse(_budgetController.text);
               if (newValue == null) return;
 
-              // 2. Validate 50% increase constraint
               if (newValue > (originalMonthlyBudget + maxIncreaseAllowed)) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Cannot exceed ₹${(originalMonthlyBudget + maxIncreaseAllowed).toInt()} (+50%)")),
@@ -95,7 +93,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
               setState(() {
                 totalBudget = newValue;
-                editsRemaining--; // Update monthly counter
+                editsRemaining--; 
               });
               Navigator.pop(context);
             },
@@ -107,7 +105,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  // --- LOGIC: AUTO-REDISTRIBUTE PERCENTAGES ---
   void _updateSplit(String changedCategory, double newValue) {
     setState(() {
       double oldValue = splitPercentages[changedCategory]!;
@@ -135,7 +132,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           child: Column(
             children: [
               _buildHeader(),
-              _buildGradientCard(), // High-fidelity card layout
+              _buildGradientCard(), 
               _buildStatGrid(),
               _buildCategorySpending(),
               _buildRecentTransactions(),
@@ -148,44 +145,50 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  // --- HEADER WITH DYNAMIC BADGE ---
+  // --- HEADER UPDATED WITH BACK BUTTON ---
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Budget', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            Text('January 2026', style: TextStyle(color: Colors.grey, fontSize: 16)),
-          ]),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(20)),
-                child: Text('$editsRemaining edits left', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          GestureDetector(
+            onTap: widget.onBackToDashboard, // Swaps index to 0 in MainWrapper
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
               ),
-              const SizedBox(width: 10),
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: _showBudgetSplitter,
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey[100]!)),
-                    child: const Icon(Icons.bar_chart, color: Colors.black87), 
-                  ),
-                ),
+              child: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.black87),
+            ),
+          ),
+          const SizedBox(width: 15),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Budget', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                Text('January 2026', style: TextStyle(color: Colors.grey, fontSize: 14)),
+              ],
+            ),
+          ),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: _showBudgetSplitter,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey[100]!)),
+                child: const Icon(Icons.bar_chart, color: Colors.black87), 
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- UPDATED MAIN GRADIENT CARD ---
   Widget _buildGradientCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -215,7 +218,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         children: [
                           Text('₹${totalBudget.toInt()}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                           const SizedBox(width: 8),
-                          // Edit button logic based on remaining edits
                           GestureDetector(
                             onTap: _showEditBudgetDialog,
                             child: CircleAvatar(
@@ -240,7 +242,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ],
           ),
           const SizedBox(height: 25),
-          // White solid progress bar
           Stack(
             children: [
               Container(height: 12, width: double.infinity, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
@@ -259,7 +260,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Combined Constraint Badge
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
             decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15)),
@@ -280,9 +280,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
       ),
     );
   }
-
-  // --- STAT CARDS, RECENT TRANSACTIONS, SMART TIPS, AND SPLITTER ---
-  // (Helpers remain exactly as in your provided code)
 
   Widget _buildStatGrid() {
     return Padding(

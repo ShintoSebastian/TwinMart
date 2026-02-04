@@ -4,10 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ManageCategoriesPage extends StatelessWidget {
   const ManageCategoriesPage({super.key});
 
-  // --- 1. THE ADD CATEGORY DIALOG ---
-  void _showAddCategoryDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final descController = TextEditingController();
+  // --- 1. THE UNIFIED DIALOG FUNCTION (Handles Add and Edit) ---
+  void _showCategoryDialog(BuildContext context, {DocumentSnapshot? doc}) {
+    // Pre-fill controllers if 'doc' is provided (Edit mode)
+    final nameController = TextEditingController(text: doc != null ? doc['name'] : "");
+    final descController = TextEditingController(text: doc != null ? doc['description'] : "");
 
     showDialog(
       context: context,
@@ -18,8 +19,8 @@ class ManageCategoriesPage extends StatelessWidget {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Add New Category", 
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              Text(doc == null ? "Add New Category" : "Edit Category", 
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.blueGrey, size: 20),
                 onPressed: () => Navigator.pop(context),
@@ -48,10 +49,55 @@ class ManageCategoriesPage extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
               child: const Text("Cancel", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            _buildDialogCreateButton(context, "Create", nameController, descController),
+            // The button logic handles both Create and Update
+            GestureDetector(
+              onTap: () async {
+                if (nameController.text.isEmpty) return;
+                try {
+                  final data = {
+                    'name': nameController.text,
+                    'description': descController.text,
+                    'timestamp': FieldValue.serverTimestamp(),
+                  };
+
+                  if (doc == null) {
+                    await FirebaseFirestore.instance.collection('categories').add(data);
+                  } else {
+                    await FirebaseFirestore.instance.collection('categories').doc(doc.id).update(data);
+                  }
+                  
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  debugPrint("Error saving category: $e");
+                }
+              },
+              child: _buildGradientButton(context, doc == null ? "Create" : "Update"),
+            ),
           ],
         );
       },
+    );
+  }
+
+  // --- DELETE CONFIRMATION LOGIC ---
+  void _showDeleteDialog(BuildContext context, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text("Delete Category", style: TextStyle(color: Colors.white)),
+        content: const Text("Are you sure? This will remove the category from the database.", style: TextStyle(color: Colors.blueGrey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('categories').doc(docId).delete();
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -102,7 +148,6 @@ class ManageCategoriesPage extends StatelessWidget {
                 
                 const SizedBox(height: 32),
                 
-                // --- DYNAMIC TABLE START ---
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -125,7 +170,6 @@ class ManageCategoriesPage extends StatelessWidget {
                         ),
                         const Divider(color: Colors.white10, height: 1),
                         
-                        // STREAM BUILDER FOR REAL-TIME UPDATES
                         Expanded(
                           child: StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
@@ -147,8 +191,8 @@ class ManageCategoriesPage extends StatelessWidget {
                                 itemCount: docs.length,
                                 separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
                                 itemBuilder: (context, index) {
-                                  final data = docs[index].data() as Map<String, dynamic>;
-                                  final docId = docs[index].id;
+                                  final doc = docs[index];
+                                  final data = doc.data() as Map<String, dynamic>;
 
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -163,11 +207,11 @@ class ManageCategoriesPage extends StatelessWidget {
                                             children: [
                                               IconButton(
                                                 icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
-                                                onPressed: () { /* Add edit logic */ },
+                                                onPressed: () => _showCategoryDialog(context, doc: doc), // Trigger edit
                                               ),
                                               IconButton(
                                                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                                onPressed: () => FirebaseFirestore.instance.collection('categories').doc(docId).delete(),
+                                                onPressed: () => _showDeleteDialog(context, doc.id), // Trigger delete
                                               ),
                                             ],
                                           ),
@@ -250,27 +294,8 @@ class ManageCategoriesPage extends StatelessWidget {
 
   Widget _buildMainAddButton(BuildContext context, bool isMobile) {
     return GestureDetector(
-      onTap: () => _showAddCategoryDialog(context),
+      onTap: () => _showCategoryDialog(context),
       child: _buildGradientButton(context, "Add Category", isMobile: isMobile, hasIcon: true),
-    );
-  }
-
-  Widget _buildDialogCreateButton(BuildContext context, String text, TextEditingController name, TextEditingController desc) {
-    return GestureDetector(
-      onTap: () async {
-        if (name.text.isEmpty) return;
-        try {
-          await FirebaseFirestore.instance.collection('categories').add({
-            'name': name.text,
-            'description': desc.text,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-          if (context.mounted) Navigator.pop(context);
-        } catch (e) {
-          debugPrint("Error adding category: $e");
-        }
-      },
-      child: _buildGradientButton(context, text),
     );
   }
 

@@ -12,7 +12,7 @@ class ShopScreen extends StatefulWidget {
 }
 
 class _ShopScreenState extends State<ShopScreen> {
-  String selectedCategoryId = "all";
+  String selectedCategoryName = "All Products";
   String searchQuery = "";
   bool isGridView = true;
 
@@ -47,10 +47,8 @@ class _ShopScreenState extends State<ShopScreen> {
                     child: _buildDynamicCategoryBar(twinGreen),
                   ),
                   Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
-                    child:
-                        _buildDynamicProductContent(twinGreen, crossAxisCount),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+                    child: _buildDynamicProductContent(twinGreen, crossAxisCount),
                   ),
                   const SizedBox(height: 110),
                 ],
@@ -62,8 +60,6 @@ class _ShopScreenState extends State<ShopScreen> {
       },
     );
   }
-
-  // ================= PAGE TITLE =================
 
   Widget _buildPageTitle() => const Padding(
         padding: EdgeInsets.symmetric(vertical: 15),
@@ -77,8 +73,6 @@ class _ShopScreenState extends State<ShopScreen> {
           ],
         ),
       );
-
-  // ================= SEARCH / GRID / CART =================
 
   Widget _buildSubHeader(Color green) {
     return Padding(
@@ -168,22 +162,17 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  // ================= CATEGORY BAR =================
-
   Widget _buildDynamicCategoryBar(Color green) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('categories').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const LinearProgressIndicator();
-        }
+        if (!snapshot.hasData) return const LinearProgressIndicator();
 
         final cats = [
-          {"id": "all", "name": "All Products", "emoji": "🛒"},
+          {"name": "All Products", "emoji": "🛒"},
           ...snapshot.data!.docs.map((doc) {
             final d = doc.data() as Map<String, dynamic>;
             return {
-              "id": doc.id,
               "name": d['name'] ?? "Category",
               "emoji": d['emoji'] ?? "🛍️"
             };
@@ -194,10 +183,10 @@ class _ShopScreenState extends State<ShopScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: cats.map((c) {
-              final active = selectedCategoryId == c['id'];
+              final active = selectedCategoryName == c['name'];
               return GestureDetector(
                 onTap: () =>
-                    setState(() => selectedCategoryId = c['id'] as String),
+                    setState(() => selectedCategoryName = c['name'] as String),
                 child: Container(
                   margin: const EdgeInsets.only(right: 12),
                   padding:
@@ -227,21 +216,33 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  // ================= PRODUCTS =================
-
   Widget _buildDynamicProductContent(Color green, int count) {
+    Query query = FirebaseFirestore.instance.collection('products');
+
+    if (selectedCategoryName != "All Products") {
+      query = query.where('category', isEqualTo: selectedCategoryName);
+    }
+
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final products = snapshot.data!.docs.map((doc) {
+        var products = snapshot.data!.docs.map((doc) {
           final d = doc.data() as Map<String, dynamic>;
           d['id'] = doc.id;
           return d;
         }).toList();
+
+        if (searchQuery.isNotEmpty) {
+          products = products.where((p) =>
+              (p['name'] ?? "")
+                  .toString()
+                  .toLowerCase()
+                  .contains(searchQuery.toLowerCase())).toList();
+        }
 
         return GridView.builder(
           shrinkWrap: true,
@@ -250,7 +251,7 @@ class _ShopScreenState extends State<ShopScreen> {
             crossAxisCount: count,
             crossAxisSpacing: 20,
             mainAxisSpacing: 20,
-            childAspectRatio: 0.72,
+            childAspectRatio: 0.82,
           ),
           itemCount: products.length,
           itemBuilder: (_, i) =>
@@ -259,8 +260,6 @@ class _ShopScreenState extends State<ShopScreen> {
       },
     );
   }
-
-  // ================= FLOATING CART =================
 
   Widget _buildFloatingCartBar(Color green) {
     return Consumer<CartProvider>(
@@ -307,12 +306,16 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
-    final String productId = product['id'];
+    final String productId = product['id'] ?? "";
     final double price = (product['price'] ?? 0).toDouble();
     final int qty = cart.items[productId]?.quantity ?? 0;
 
+    // ✅ Robust URL Handling
+    final dynamic rawUrl = product['imageUrl'];
+    final String? imageUrl = (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl.trim() : null;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
@@ -325,8 +328,27 @@ class _ProductCard extends StatelessWidget {
         children: [
           Expanded(
             child: Center(
-              child: Text(product['image'] ?? "🛍️",
-                  style: const TextStyle(fontSize: 48)),
+              child: imageUrl != null
+                  ? Image.network(
+                      imageUrl,
+                      height: 75,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Text("🛍️", style: TextStyle(fontSize: 38)),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            strokeWidth: 2,
+                          ),
+                        );
+                      },
+                    )
+                  : const Text("🛍️", style: TextStyle(fontSize: 38)),
             ),
           ),
           const SizedBox(height: 8),
@@ -334,19 +356,17 @@ class _ProductCard extends StatelessWidget {
             product['name'] ?? "Product",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("₹$price",
                   style: TextStyle(
                       color: green,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold)),
-
-              // ➕➖ ADD / QUANTITY CONTROL
               qty == 0
                   ? GestureDetector(
                       onTap: () {
@@ -354,58 +374,48 @@ class _ProductCard extends StatelessWidget {
                           'id': productId,
                           'name': product['name'],
                           'price': price,
-                          'image': product['image'] ?? "🛍️",
+                          'image': imageUrl ?? "🛍️",
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: green,
-                          borderRadius: BorderRadius.circular(20),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.add,
-                                size: 16, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text("Add",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                        child: const Icon(Icons.add,
+                            size: 16, color: Colors.white),
                       ),
                     )
                   : Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
-                        border: Border.all(color: green),
-                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: green.withOpacity(0.5)),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                       child: Row(
                         children: [
-                          IconButton(
-                            icon: Icon(Icons.remove, color: green, size: 18),
-                            onPressed: () =>
-                                cart.removeSingleItem(productId),
+                          GestureDetector(
+                            onTap: () => cart.removeSingleItem(productId),
+                            child: Icon(Icons.remove, color: green, size: 16),
                           ),
-                          Text(
-                            qty.toString(),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              qty.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.add, color: green, size: 18),
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               cart.addToCart({
                                 'id': productId,
                                 'name': product['name'],
                                 'price': price,
-                                'image': product['image'] ?? "🛍️",
+                                'image': imageUrl ?? "🛍️",
                               });
                             },
+                            child: Icon(Icons.add, color: green, size: 16),
                           ),
                         ],
                       ),

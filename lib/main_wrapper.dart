@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dashboard.dart';    
 import 'shop_screen.dart';  
-import 'scan_screen.dart'; // Import your new scan file
+import 'scan_screen.dart'; 
 import 'budget_screen.dart'; 
-import 'profile_screen.dart'; // Import your new profile file
+import 'profile_screen.dart'; 
 
 class MainWrapper extends StatefulWidget {
   const MainWrapper({super.key});
@@ -25,17 +25,17 @@ class _MainWrapperState extends State<MainWrapper> {
   Widget build(BuildContext context) {
     const Color twinGreen = Color(0xFF1DB98A);
 
-    // Update the pages list with actual class names
     final List<Widget> _pages = [
       DashboardScreen(
         onScanRequest: () => _handleNavigationRequest(2), 
         onShopRequest: () => _handleNavigationRequest(1), 
         onBudgetRequest: () => _handleNavigationRequest(3)
       ),
-      const ShopScreen(),      
-      const ScanScreen(),    // Linked actual ScanScreen
-      const BudgetScreen(),    
-      const ProfileScreen(), // Linked actual ProfileScreen
+      const ShopScreen(),
+      ScanScreen(onBackToDashboard: () => _handleNavigationRequest(0)),
+      BudgetScreen(onBackToDashboard: () => _handleNavigationRequest(0)),
+      // Pass the navigation handler here
+      ProfileScreen(onBackToDashboard: () => _handleNavigationRequest(0)),
     ];
 
     return Scaffold(
@@ -44,7 +44,6 @@ class _MainWrapperState extends State<MainWrapper> {
         children: _pages,
       ),
       bottomNavigationBar: Container(
-        // Navigation bar styling
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),

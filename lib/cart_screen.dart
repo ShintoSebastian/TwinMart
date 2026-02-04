@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'cart_provider.dart'; // Import only
+import 'cart_provider.dart'; 
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Listen to the cart provider
     final cart = Provider.of<CartProvider>(context);
     const Color twinGreen = Color(0xFF1DB98A);
 
@@ -35,7 +34,6 @@ class CartScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(20),
                     itemCount: cart.items.length,
                     itemBuilder: (context, index) {
-                      // Correctly access alphanumeric map values
                       CartItem item = cart.items.values.toList()[index];
                       return _buildCartItem(item, cart, twinGreen);
                     },
@@ -71,13 +69,22 @@ class CartScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Dynamic image (Emoji or Admin-uploaded URL)
+          // ✅ UPDATED IMAGE CONTAINER
           Container(
             height: 70,
             width: 70,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: const Color(0xFFF9F9F9), borderRadius: BorderRadius.circular(15)),
-            child: Text(item.image, style: const TextStyle(fontSize: 35)),
+            clipBehavior: Clip.antiAlias, // Ensures image fits within rounded corners
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F9F9), 
+              borderRadius: BorderRadius.circular(15)
+            ),
+            child: (item.image.startsWith('http'))
+                ? Image.network(
+                    item.image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+                  )
+                : Center(child: Text(item.image, style: const TextStyle(fontSize: 35))),
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -90,7 +97,6 @@ class CartScreen extends StatelessWidget {
               ],
             ),
           ),
-          // --- +/- Quantity Controls ---
           Container(
             decoration: BoxDecoration(color: const Color(0xFFF4F9F8), borderRadius: BorderRadius.circular(15)),
             child: Row(
@@ -142,9 +148,7 @@ class CartScreen extends StatelessWidget {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () {
-                  // Checkout implementation logic
-                },
+                onPressed: () {},
                 style: ElevatedButton.styleFrom(
                   backgroundColor: green, 
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
