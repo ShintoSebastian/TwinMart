@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ Added for Wishlist
 import 'cart_provider.dart';
 import 'cart_screen.dart';
 
@@ -303,127 +304,191 @@ class _ProductCard extends StatelessWidget {
     required this.green,
   });
 
+  // ✅ Wishlist Toggle Logic
+  Future<void> _toggleWishlist(String userId, String productId) async {
+    final wishlistRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('wishlist')
+        .doc(productId);
+
+    final doc = await wishlistRef.get();
+
+    if (doc.exists) {
+      await wishlistRef.delete();
+    } else {
+      await wishlistRef.set({
+        'name': product['name'],
+        'price': product['price'],
+        'imageUrl': product['imageUrl'],
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
     final String productId = product['id'] ?? "";
     final double price = (product['price'] ?? 0).toDouble();
     final int qty = cart.items[productId]?.quantity ?? 0;
 
-    // ✅ Robust URL Handling
     final dynamic rawUrl = product['imageUrl'];
     final String? imageUrl = (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl.trim() : null;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Center(
-              child: imageUrl != null
-                  ? Image.network(
-                      imageUrl,
-                      height: 75,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Text("🛍️", style: TextStyle(fontSize: 38)),
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                            strokeWidth: 2,
-                          ),
-                        );
-                      },
-                    )
-                  : const Text("🛍️", style: TextStyle(fontSize: 38)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            product['name'] ?? "Product",
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("₹$price",
-                  style: TextStyle(
-                      color: green,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
-              qty == 0
-                  ? GestureDetector(
-                      onTap: () {
-                        cart.addToCart({
-                          'id': productId,
-                          'name': product['name'],
-                          'price': price,
-                          'image': imageUrl ?? "🛍️",
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: green,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.add,
-                            size: 16, color: Colors.white),
-                      ),
-                    )
-                  : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: green.withOpacity(0.5)),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => cart.removeSingleItem(productId),
-                            child: Icon(Icons.remove, color: green, size: 16),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Text(
-                              qty.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              cart.addToCart({
-                                'id': productId,
-                                'name': product['name'],
-                                'price': price,
-                                'image': imageUrl ?? "🛍️",
-                              });
-                            },
-                            child: Icon(Icons.add, color: green, size: 16),
-                          ),
-                        ],
-                      ),
-                    ),
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
             ],
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Center(
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          height: 75,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Text("🛍️", style: TextStyle(fontSize: 38)),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2,
+                              ),
+                            );
+                          },
+                        )
+                      : const Text("🛍️", style: TextStyle(fontSize: 38)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                product['name'] ?? "Product",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("₹$price",
+                      style: TextStyle(
+                          color: green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  qty == 0
+                      ? GestureDetector(
+                          onTap: () {
+                            cart.addToCart({
+                              'id': productId,
+                              'name': product['name'],
+                              'price': price,
+                              'image': imageUrl ?? "🛍️",
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: green,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add,
+                                size: 16, color: Colors.white),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: green.withOpacity(0.5)),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => cart.removeSingleItem(productId),
+                                child: Icon(Icons.remove, color: green, size: 16),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  qty.toString(),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  cart.addToCart({
+                                    'id': productId,
+                                    'name': product['name'],
+                                    'price': price,
+                                    'image': imageUrl ?? "🛍️",
+                                  });
+                                },
+                                child: Icon(Icons.add, color: green, size: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // ✅ Wishlist Icon Overlay
+        if (userId.isNotEmpty)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .collection('wishlist')
+                  .doc(productId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final bool isInWishlist = snapshot.hasData && snapshot.data!.exists;
+                return GestureDetector(
+                  onTap: () => _toggleWishlist(userId, productId),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                        )
+                      ],
+                    ),
+                    child: Icon(
+                      isInWishlist ? Icons.favorite : Icons.favorite_border,
+                      color: isInWishlist ? Colors.red : Colors.grey,
+                      size: 18,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }

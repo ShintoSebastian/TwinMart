@@ -3,13 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'edit_profile_screen.dart';
-// ✅ These files must exist in your lib folder
 import 'order_history_screen.dart';
 import 'payment_methods_screen.dart';
 import 'saved_addresses_screen.dart';
+import 'wishlist_screen.dart'; 
+import 'notifications_screen.dart'; 
+import 'help_support_screen.dart'; 
 
 class ProfileScreen extends StatefulWidget {
-  // Callback to notify MainWrapper to change the tab index
   final VoidCallback onBackToDashboard; 
 
   const ProfileScreen({super.key, required this.onBackToDashboard});
@@ -52,6 +53,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ✅ NEW: Password Change Logic (Sends Email)
+  Future<void> _handleChangePassword() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.email != null) {
+      try {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Reset link sent to ${user.email}"),
+              backgroundColor: twinGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to send reset link. Try again later.")),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,8 +110,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  // ================= TOP HEADER WITH BACK BUTTON =================
 
   Widget _buildTopHeader() {
     return Row(
@@ -129,7 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.notifications_none),
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                );
+              },
             ),
             const SizedBox(width: 5),
             CircleAvatar(
@@ -148,8 +178,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-
-  // ================= PROFILE CARD =================
 
   Widget _buildProfileCard() {
     return Container(
@@ -202,8 +230,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ================= STATS =================
-
   Widget _buildStatsRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -242,8 +268,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ================= SETTINGS =================
-
   Widget _buildSettingsCard() {
     return Container(
       decoration: BoxDecoration(
@@ -281,6 +305,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           ),
           _settingsTile(
+            icon: Icons.favorite_border,
+            title: "My Wishlist",
+            subtitle: "Items you've saved for later",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WishlistScreen()),
+              );
+            },
+          ),
+          // ✅ ADDED CHANGE PASSWORD TILE
+          _settingsTile(
+            icon: Icons.lock_reset_outlined,
+            title: "Change Password",
+            subtitle: "Send a reset link to your email",
+            onTap: _handleChangePassword,
+          ),
+          _settingsTile(
+            icon: Icons.notifications_active_outlined,
+            title: "Notifications",
+            subtitle: "Manage your alert preferences",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
+          _settingsTile(
             icon: Icons.credit_card,
             title: "Payment Methods",
             subtitle: "Manage cards & UPI",
@@ -299,6 +352,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => SavedAddressesScreen()),
+              );
+            },
+          ),
+          _settingsTile(
+            icon: Icons.help_outline,
+            title: "Help & Support",
+            subtitle: "FAQs and contact information",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
               );
             },
           ),
@@ -329,8 +393,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       trailing: const Icon(Icons.chevron_right),
     );
   }
-
-  // ================= SIGN OUT =================
 
   Widget _buildSignOutButton() {
     return OutlinedButton(
