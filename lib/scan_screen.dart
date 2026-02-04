@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  // 1. Added the callback parameter
+  final VoidCallback onBackToDashboard; 
+
+  // 2. Updated constructor to require this parameter
+  const ScanScreen({super.key, required this.onBackToDashboard});
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -30,14 +34,42 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Header Section
-              const Text(
-                'Scan & Shop', 
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)
-              ),
-              const Text(
-                'Scan products to add them to your cart', 
-                style: TextStyle(color: Colors.grey, fontSize: 15)
+              // --- UPDATED HEADER SECTION WITH SAFE NAVIGATION ---
+              Row(
+                children: [
+                  GestureDetector(
+                    // 3. Changed Navigator.pop to widget.onBackToDashboard
+                    onTap: widget.onBackToDashboard, 
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                          )
+                        ],
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.black87),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Scan & Shop', 
+                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)
+                      ),
+                      Text(
+                        'Scan products to add them to your cart', 
+                        style: TextStyle(color: Colors.grey, fontSize: 14)
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 25),
               
@@ -58,9 +90,8 @@ class _ScanScreenState extends State<ScanScreen> {
                       onDetect: (capture) {
                         final List<Barcode> barcodes = capture.barcodes;
                         for (final barcode in barcodes) {
-                          HapticFeedback.lightImpact(); // Haptic feedback on scan
+                          HapticFeedback.lightImpact(); 
                           debugPrint('Detected code: ${barcode.rawValue}');
-                          // Next Step: Trigger a "Product Added" snackbar or navigation
                         }
                       },
                     ),
@@ -172,7 +203,7 @@ class _ScanScreenState extends State<ScanScreen> {
     return GestureDetector(
       onTap: onTap,
       child: MouseRegion(
-        cursor: SystemMouseCursors.click, // Hand pointer for Windows/Web
+        cursor: SystemMouseCursors.click, 
         child: Container(
           padding: EdgeInsets.all(isPrimary ? 16 : 12),
           decoration: BoxDecoration(

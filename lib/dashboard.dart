@@ -23,6 +23,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool isOnline = false;
+  // --- ADDED: Tracker for category filtering ---
+  String selectedCategoryName = "All Products";
 
   static const Color brandGreen = Color(0xFF1DB98A);
   static const Color brandBlue = Color(0xFF2196F3);
@@ -61,6 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Center(child: _buildOnlineOfflineToggle()),
                         const SizedBox(height: 30),
                         if (isOnline) ...[
+                          // --- UPDATED: Passing selected category to ShopScreen ---
                           const ShopScreen(),
                         ] else ...[
                           _buildMainActionCards(),
@@ -133,7 +136,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const Icon(Icons.notifications_none, color: darkText),
         const SizedBox(width: 12),
 
-        /// 🔵 USER INITIAL → GO TO PROFILE SCREEN
         FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
@@ -149,7 +151,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ProfileScreen(),
+                    builder: (context) => ProfileScreen(
+                      onBackToDashboard: () => Navigator.pop(context),
+                    ),
                   ),
                 );
               },
@@ -445,7 +449,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/// ================= HOVER SCALE =================
 class HoverScale extends StatefulWidget {
   final Widget child;
   const HoverScale({super.key, required this.child});

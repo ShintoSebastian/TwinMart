@@ -5,7 +5,10 @@ import 'login.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  // 1. Added callback to notify MainWrapper to change the tab index
+  final VoidCallback onBackToDashboard; 
+
+  const ProfileScreen({super.key, required this.onBackToDashboard});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -77,23 +80,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ================= TOP HEADER =================
+  // ================= TOP HEADER UPDATED WITH BACK BUTTON =================
 
   Widget _buildTopHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
-          children: const [
-            CircleAvatar(
-              backgroundColor: Color(0xFF1DB98A),
-              child: Icon(Icons.shopping_cart, color: Colors.white),
+          children: [
+            // --- BACK BUTTON ADDED HERE ---
+            GestureDetector(
+              onTap: widget.onBackToDashboard, 
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                    )
+                  ],
+                ),
+                child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.black87),
+              ),
             ),
-            SizedBox(width: 10),
-            Text(
+            const SizedBox(width: 12),
+            const CircleAvatar(
+              radius: 18,
+              backgroundColor: Color(0xFF1DB98A),
+              child: Icon(Icons.shopping_cart, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 10),
+            const Text(
               "TwinMart",
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
