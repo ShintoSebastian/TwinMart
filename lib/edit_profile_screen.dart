@@ -18,6 +18,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final Color twinGreen = const Color(0xFF1DB98A);
+  final Color bgLight = const Color(0xFFF4F9F8); // Matching profile bg
 
   late TextEditingController nameController;
   late TextEditingController phoneController;
@@ -37,42 +38,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => isSaving = true);
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .update({
-      'name': nameController.text.trim(),
-      'phone': phoneController.text.trim(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'name': nameController.text.trim(),
+        'phone': phoneController.text.trim(),
+      });
 
-    if (!mounted) return;
-    Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() => isSaving = false);
+      // Optional: Add a snackbar here to show the error
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgLight, // UI matching background
       appBar: AppBar(
-        title: const Text("Edit Profile"),
-        backgroundColor: twinGreen,
+        title: const Text("Edit Profile", 
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _inputField("Name", nameController),
-            const SizedBox(height: 20),
-            _inputField("Phone Number", phoneController,
-                keyboard: TextInputType.phone),
+            const SizedBox(height: 10),
+            // ✅ White container matching the "Settings" card UI
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  )
+                ],
+              ),
+              child: Column(
+                children: [
+                  _inputField("Name", nameController, Icons.person_outline),
+                  const SizedBox(height: 20),
+                  _inputField("Phone Number", phoneController, Icons.phone_android_outlined,
+                      keyboard: TextInputType.phone),
+                ],
+              ),
+            ),
             const SizedBox(height: 40),
+            // ✅ Updated Save Button
             SizedBox(
               width: double.infinity,
-              height: 55,
+              height: 60,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: twinGreen,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18)),
+                      borderRadius: BorderRadius.circular(25)),
+                  elevation: 5,
+                  shadowColor: twinGreen.withOpacity(0.3),
                 ),
                 onPressed: isSaving ? null : _saveProfile,
                 child: isSaving
@@ -80,7 +117,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     : const Text(
                         "Save Changes",
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 18, 
+                            fontWeight: FontWeight.bold),
                       ),
               ),
             )
@@ -90,16 +129,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController controller,
+  Widget _inputField(String label, TextEditingController controller, IconData icon,
       {TextInputType keyboard = TextInputType.text}) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboard,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15)),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboard,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: twinGreen),
+            filled: true,
+            fillColor: bgLight.withOpacity(0.5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+      ],
     );
   }
 }
