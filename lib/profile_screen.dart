@@ -3,9 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'edit_profile_screen.dart';
+// ✅ These files must exist in your lib folder
+import 'order_history_screen.dart';
+import 'payment_methods_screen.dart';
+import 'saved_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  // 1. Added callback to notify MainWrapper to change the tab index
+  // Callback to notify MainWrapper to change the tab index
   final VoidCallback onBackToDashboard; 
 
   const ProfileScreen({super.key, required this.onBackToDashboard});
@@ -80,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ================= TOP HEADER UPDATED WITH BACK BUTTON =================
+  // ================= TOP HEADER WITH BACK BUTTON =================
 
   Widget _buildTopHeader() {
     return Row(
@@ -88,7 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Row(
           children: [
-            // --- BACK BUTTON ADDED HERE ---
             GestureDetector(
               onTap: widget.onBackToDashboard, 
               child: Container(
@@ -270,21 +273,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.shopping_bag_outlined,
             title: "Order History",
             subtitle: "View past orders",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => OrderHistoryScreen()),
+              );
+            },
           ),
           _settingsTile(
             icon: Icons.credit_card,
             title: "Payment Methods",
             subtitle: "Manage cards & UPI",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PaymentMethodsScreen()),
+              );
+            },
           ),
           _settingsTile(
             icon: Icons.location_on_outlined,
             title: "Saved Addresses",
             subtitle: "Delivery locations",
-          ),
-          _settingsTile(
-            icon: Icons.notifications_none_outlined,
-            title: "Notifications",
-            subtitle: "Manage alerts",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SavedAddressesScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -299,8 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return ListTile(
       onTap: onTap,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -309,10 +324,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Icon(icon, color: twinGreen),
       ),
-      title:
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle:
-          Text(subtitle, style: const TextStyle(color: Colors.grey)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
       trailing: const Icon(Icons.chevron_right),
     );
   }
@@ -333,8 +346,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(double.infinity, 60),
         side: BorderSide(color: twinGreen),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       child: const Text(
         "Sign Out",
