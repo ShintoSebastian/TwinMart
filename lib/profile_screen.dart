@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String userName = "User";
   String userPhone = "";
+  String userEmail = "";
   String userInitial = "U";
 
   @override
@@ -47,6 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         userName = doc['name'] ?? "User";
         userPhone = doc['phone'] ?? "";
+        userEmail = doc['email'] ?? user.email ?? "";
         userInitial =
             userName.isNotEmpty ? userName[0].toUpperCase() : "U";
       });
@@ -281,15 +283,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: "Edit Profile",
             subtitle: "Update your personal details",
             onTap: () async {
+              // ✅ Corrected: Now passing currentEmail and awaiting the result
               await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => EditProfileScreen(
                     currentName: userName,
                     currentPhone: userPhone,
+                    currentEmail: userEmail,
                   ),
                 ),
               );
+              // ✅ Refresh the data when returning from the edit screen
               _fetchUserData();
             },
           ),

@@ -5,11 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
   final String currentPhone;
+  final String currentEmail;
 
   const EditProfileScreen({
     super.key,
     required this.currentName,
     required this.currentPhone,
+    required this.currentEmail,
   });
 
   @override
@@ -18,10 +20,11 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final Color twinGreen = const Color(0xFF1DB98A);
-  final Color bgLight = const Color(0xFFF4F9F8); // Matching profile bg
+  final Color bgLight = const Color(0xFFF4F9F8);
 
   late TextEditingController nameController;
   late TextEditingController phoneController;
+  late TextEditingController emailController;
 
   bool isSaving = false;
 
@@ -30,6 +33,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     nameController = TextEditingController(text: widget.currentName);
     phoneController = TextEditingController(text: widget.currentPhone);
+    emailController = TextEditingController(text: widget.currentEmail);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    super.dispose();
   }
 
   Future<void> _saveProfile() async {
@@ -39,26 +51,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => isSaving = true);
 
     try {
+      // Update Email in Firebase Auth if it has changed
+      if (emailController.text.trim() != widget.currentEmail) {
+        await user.verifyBeforeUpdateEmail(emailController.text.trim());
+      }
+
+      // Update Firestore document
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({
         'name': nameController.text.trim(),
         'phone': phoneController.text.trim(),
+        'email': emailController.text.trim(),
       });
 
       if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile updated successfully!")),
+      );
       Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      setState(() => isSaving = false);
+      String message = "An error occurred";
+      if (e.code == 'requires-recent-login') {
+        message = "Please re-log in to change your email address.";
+      } else {
+        message = e.message ?? message;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       setState(() => isSaving = false);
-      // Optional: Add a snackbar here to show the error
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to update profile.")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgLight, // UI matching background
+      backgroundColor: bgLight,
       appBar: AppBar(
         title: const Text("Edit Profile", 
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
@@ -75,7 +109,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 10),
-            // ✅ White container matching the "Settings" card UI
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -93,13 +126,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   _inputField("Name", nameController, Icons.person_outline),
                   const SizedBox(height: 20),
+                  _inputField("Email Address", emailController, Icons.email_outlined,
+                      keyboard: TextInputType.emailAddress),
+                  const SizedBox(height: 20),
                   _inputField("Phone Number", phoneController, Icons.phone_android_outlined,
                       keyboard: TextInputType.phone),
                 ],
               ),
             ),
             const SizedBox(height: 40),
-            // ✅ Updated Save Button
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -109,7 +144,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25)),
                   elevation: 5,
-                  shadowColor: twinGreen.withOpacity(0.3),
                 ),
                 onPressed: isSaving ? null : _saveProfile,
                 child: isSaving
@@ -153,5 +187,5 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ],
     );
-  }
+  }  
 }
