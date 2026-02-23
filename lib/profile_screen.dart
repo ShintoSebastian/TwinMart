@@ -9,7 +9,8 @@ import 'saved_addresses_screen.dart';
 import 'wishlist_screen.dart'; 
 import 'notifications_screen.dart'; 
 import 'help_support_screen.dart'; 
-
+import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'dart:ui' as ui;
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBackToDashboard; 
 
@@ -20,9 +21,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final Color twinGreen = const Color(0xFF1DB98A);
-  final Color twinTeal = const Color(0xFF15A196);
-  final Color bgLight = const Color(0xFFF4F9F8);
+  final Color twinGreen = TwinMartTheme.brandGreen;
+  final Color twinTeal = TwinMartTheme.brandTeal;
+  final Color bgLight = TwinMartTheme.bgLight;
 
   String userName = "User";
   String userPhone = "";
@@ -55,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ✅ NEW: Password Change Logic (Sends Email)
+  // NEW: Password Change Logic (Sends Email)
   Future<void> _handleChangePassword() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
@@ -85,30 +86,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgLight,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTopHeader(),
-              const SizedBox(height: 20),
-              _buildProfileCard(),
-              const SizedBox(height: 25),
-              _buildStatsRow(),
-              const SizedBox(height: 30),
-              const Text(
-                "Settings",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              _buildSettingsCard(),
-              const SizedBox(height: 25),
-              _buildSignOutButton(),
-              const SizedBox(height: 100),
-            ],
+      body: Stack(
+        children: [
+          TwinMartTheme.bgBlob(
+            top: -120,
+            right: -100,
+            size: 320,
+            color: TwinMartTheme.brandGreen.withOpacity(0.2),
           ),
-        ),
+          TwinMartTheme.bgBlob(
+            bottom: 100,
+            left: -60,
+            size: 280,
+            color: TwinMartTheme.brandBlue.withOpacity(0.18),
+          ),
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopHeader(),
+                    const SizedBox(height: 20),
+                    _buildProfileCard(),
+                    const SizedBox(height: 25),
+                    _buildStatsRow(),
+                    const SizedBox(height: 30),
+                    const Text(
+                      "Settings",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 15),
+                    _buildSettingsCard(),
+                    const SizedBox(height: 25),
+                    _buildSignOutButton(),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -137,19 +157,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xFF1DB98A),
-              child: Icon(Icons.shopping_cart, color: Colors.white, size: 18),
-            ),
+            TwinMartTheme.brandLogo(size: 18),
             const SizedBox(width: 10),
-            const Text(
-              "TwinMart",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            TwinMartTheme.brandText(fontSize: 18),
           ],
         ),
         Row(
@@ -233,13 +243,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _statCard("Total Orders", "0"),
-        _statCard("Total Spent", "₹0"),
-        _statCard("Saved", "₹0"),
-      ],
+    final user = FirebaseAuth.instance.currentUser;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user?.uid)
+          .collection('budget')
+          .doc('settings')
+          .snapshots(),
+      builder: (context, snapshot) {
+        double savings = 0.0;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          savings = (data?['total_savings'] ?? 0.0).toDouble();
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _statCard("Total Orders", "0"),
+            _statCard("Total Spent", "₹0"),
+            _statCard("Saved", "₹${savings.toInt()}"),
+          ],
+        );
+      }
     );
   }
 
@@ -283,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: "Edit Profile",
             subtitle: "Update your personal details",
             onTap: () async {
-              // ✅ Corrected: Now passing currentEmail and awaiting the result
+              // Corrected: Now passing currentEmail and awaiting the result
               await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -294,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               );
-              // ✅ Refresh the data when returning from the edit screen
+              // Refresh the data when returning from the edit screen
               _fetchUserData();
             },
           ),
@@ -320,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
-          // ✅ ADDED CHANGE PASSWORD TILE
+          // ADDED CHANGE PASSWORD TILE
           _settingsTile(
             icon: Icons.lock_reset_outlined,
             title: "Change Password",
@@ -345,7 +372,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => PaymentMethodsScreen()),
+                MaterialPageRoute(builder: (_) => const PaymentMethodsScreen(
+                  amount: 0.0,
+                  items: [],
+                )),
               );
             },
           ),

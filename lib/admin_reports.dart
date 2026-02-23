@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ManageReportsPage extends StatelessWidget {
   const ManageReportsPage({super.key});
@@ -25,7 +26,7 @@ class ManageReportsPage extends StatelessWidget {
               )
             : null,
           body: Padding(
-            padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 8.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,25 +56,44 @@ class ManageReportsPage extends StatelessWidget {
                   const SizedBox(height: 32),
                   
                   // --- STAT CARDS GRID ---
-                  isMobile 
-                    ? Column(
-                        children: [
-                          _buildStatCard("Total Revenue", "\$0.00", Icons.attach_money, Colors.green.withOpacity(0.1), Colors.green),
-                          const SizedBox(height: 16),
-                          _buildStatCard("Transactions", "0", Icons.receipt_long, Colors.blue.withOpacity(0.1), Colors.blue),
-                          const SizedBox(height: 16),
-                          _buildStatCard("Avg. Order Value", "\$0.00", Icons.trending_up, Colors.purple.withOpacity(0.1), Colors.purple),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(child: _buildStatCard("Total Revenue", "\$0.00", Icons.attach_money, Colors.green.withOpacity(0.1), Colors.green)),
-                          const SizedBox(width: 20),
-                          Expanded(child: _buildStatCard("Transactions", "0", Icons.receipt_long, Colors.blue.withOpacity(0.1), Colors.blue)),
-                          const SizedBox(width: 20),
-                          Expanded(child: _buildStatCard("Avg. Order Value", "\$0.00", Icons.trending_up, Colors.purple.withOpacity(0.1), Colors.purple)),
-                        ],
-                      ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('orders').snapshots(),
+                    builder: (context, snapshot) {
+                      double totalRevenue = 0;
+                      int transactions = 0;
+                      double avgOrderValue = 0;
+
+                      if (snapshot.hasData) {
+                        transactions = snapshot.data!.docs.length;
+                        for (var doc in snapshot.data!.docs) {
+                          totalRevenue += (doc['totalAmount'] ?? 0).toDouble();
+                        }
+                        if (transactions > 0) {
+                          avgOrderValue = totalRevenue / transactions;
+                        }
+                      }
+
+                      return isMobile 
+                        ? Column(
+                            children: [
+                              _buildStatCard("Total Revenue", "₹${totalRevenue.toInt()}", Icons.attach_money, Colors.green.withOpacity(0.1), Colors.green),
+                              const SizedBox(height: 16),
+                              _buildStatCard("Transactions", transactions.toString(), Icons.receipt_long, Colors.blue.withOpacity(0.1), Colors.blue),
+                              const SizedBox(height: 16),
+                              _buildStatCard("Avg. Order Value", "₹${avgOrderValue.toInt()}", Icons.trending_up, Colors.purple.withOpacity(0.1), Colors.purple),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(child: _buildStatCard("Total Revenue", "₹${totalRevenue.toInt()}", Icons.attach_money, Colors.green.withOpacity(0.1), Colors.green)),
+                              const SizedBox(width: 20),
+                              Expanded(child: _buildStatCard("Transactions", transactions.toString(), Icons.receipt_long, Colors.blue.withOpacity(0.1), Colors.blue)),
+                              const SizedBox(width: 20),
+                              Expanded(child: _buildStatCard("Avg. Order Value", "₹${avgOrderValue.toInt()}", Icons.trending_up, Colors.purple.withOpacity(0.1), Colors.purple)),
+                            ],
+                          );
+                    },
+                  ),
                 ],
               ),
             ),

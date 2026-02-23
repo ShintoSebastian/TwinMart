@@ -4,8 +4,11 @@ import 'admin_categories.dart';
 import 'admin_inventory.dart';
 import 'admin_transactions.dart';
 import 'admin_reports.dart';
-import 'admin_users.dart'; // NEW IMPORT
+import 'admin_users.dart';
+import 'admin_promotions.dart';
 import 'login.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -15,6 +18,7 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
 
   // Exact Theme Colors
@@ -31,6 +35,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         bool isMobile = constraints.maxWidth < 900;
 
         return Scaffold(
+          key: _scaffoldKey,
           backgroundColor: bgDark,
           // Mobile View: Use a Drawer
           drawer: isMobile ? Drawer(child: _buildSidebarContents(true)) : null,
@@ -72,7 +77,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 3: return const ManageInventoryPage();
       case 4: return const ManageTransactionsPage();
       case 5: return const ManageReportsPage();
-      case 6: return const ManageUsersPage(); // NEW CASE
+      case 6: return const ManageUsersPage(); 
+      case 7: return const ManageOffersPage();
       default: return const Center(child: Text("Coming Soon", style: TextStyle(color: Colors.white)));
     }
   }
@@ -89,7 +95,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _sidebarItem(3, Icons.warehouse_outlined, "Inventory"),
         _sidebarItem(4, Icons.receipt_long_outlined, "Transactions"),
         _sidebarItem(5, Icons.description_outlined, "Reports"),
-        _sidebarItem(6, Icons.people_outline, "Manage Users"), // NEW ITEM
+        _sidebarItem(6, Icons.people_outline, "Manage Users"),
+        _sidebarItem(7, Icons.campaign_outlined, "Manage Offers"),
         const Spacer(),
         _buildSidebarFooter(),
       ],
@@ -106,7 +113,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (!isMobile) const Text("Dashboard", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           
-          // 1. STATS GRID - Now Interactive
+          // 1. STATS GRID - Now Dynamic with Real Data
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -115,12 +122,72 @@ class _AdminDashboardState extends State<AdminDashboard> {
             mainAxisSpacing: 20,
             childAspectRatio: isMobile ? 2.5 : 2.1,
             children: [
-              _buildStatCard("Total Products", "0", Icons.inventory_2_outlined, Colors.blue, () => setState(() => _selectedIndex = 1)),
-              _buildStatCard("Categories", "0", Icons.category_outlined, Colors.purple, () => setState(() => _selectedIndex = 2)),
-              _buildStatCard("Low Stock Items", "0", Icons.warning_amber_rounded, Colors.orange, () => setState(() => _selectedIndex = 3)),
-              _buildStatCard("Total Transactions", "0", Icons.receipt_long_outlined, Colors.green, () => setState(() => _selectedIndex = 4)),
-              _buildStatCard("Total Users", "0", Icons.people_alt_outlined, Colors.indigo, () => setState(() => _selectedIndex = 6)), // UPDATED CARD
-              _buildStatCard("Total Revenue", "\$0.00", Icons.trending_up, Colors.teal, () => setState(() => _selectedIndex = 5)),
+              // Total Products
+              _buildStreamStatCard(
+                "Total Products", 
+                FirebaseFirestore.instance.collection('products').snapshots(),
+                (snap) => snap.docs.length.toString(),
+                Icons.inventory_2_outlined, Colors.blue, 
+                () => setState(() => _selectedIndex = 1)
+              ),
+              
+              // Categories
+              _buildStreamStatCard(
+                "Categories", 
+                FirebaseFirestore.instance.collection('categories').snapshots(),
+                (snap) => snap.docs.length.toString(),
+                Icons.category_outlined, Colors.purple, 
+                () => setState(() => _selectedIndex = 2)
+              ),
+
+              // Low Stock Items (Assumes stock field exists or defaults to 0)
+              _buildStreamStatCard(
+                "Low Stock Items", 
+                FirebaseFirestore.instance.collection('products').snapshots(),
+                (snap) {
+                   int lowStock = snap.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      int stock = data['stock'] ?? 0;
+                      return stock <= 10; // Threshold of 10
+                   }).length;
+                   return lowStock.toString();
+                },
+                Icons.warning_amber_rounded, Colors.orange, 
+                () => setState(() => _selectedIndex = 3)
+              ),
+
+              // Total Transactions
+              _buildStreamStatCard(
+                "Total Transactions", 
+                FirebaseFirestore.instance.collection('orders').snapshots(),
+                (snap) => snap.docs.length.toString(),
+                Icons.receipt_long_outlined, Colors.green, 
+                () => setState(() => _selectedIndex = 4)
+              ),
+
+              // Total Users
+              _buildStreamStatCard(
+                "Total Users", 
+                FirebaseFirestore.instance.collection('users').snapshots(),
+                (snap) => snap.docs.length.toString(),
+                Icons.people_alt_outlined, Colors.indigo, 
+                () => setState(() => _selectedIndex = 6)
+              ),
+
+              // Total Revenue
+              _buildStreamStatCard(
+                "Total Revenue", 
+                FirebaseFirestore.instance.collection('orders').snapshots(),
+                (snap) {
+                   double total = 0;
+                   for (var doc in snap.docs) {
+                     total += (doc['totalAmount'] ?? 0).toDouble();
+                   }
+                   return "₹${total.toInt()}";
+                },
+                Icons.trending_up, Colors.teal, 
+                () => setState(() => _selectedIndex = 5)
+              ),
             ],
           ),
           
@@ -150,7 +217,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     _buildActionBtn("Manage Products", Icons.inventory_2, Colors.blue, () => setState(() => _selectedIndex = 1)),
                     _buildActionBtn("Manage Categories", Icons.category, Colors.purple, () => setState(() => _selectedIndex = 2)),
                     _buildActionBtn("Check Inventory", Icons.warehouse, Colors.orange, () => setState(() => _selectedIndex = 3)),
-                    _buildActionBtn("Manage Users", Icons.person_add_alt_1, Colors.indigo, () => setState(() => _selectedIndex = 6)), // NEW ACTION
+                    _buildActionBtn("Manage Users", Icons.person_add_alt_1, Colors.indigo, () => setState(() => _selectedIndex = 6)),
+                    _buildActionBtn("Manage Offers", Icons.campaign, Colors.pinkAccent, () => setState(() => _selectedIndex = 7)),
                     _buildActionBtn("View Reports", Icons.trending_up, Colors.green, () => setState(() => _selectedIndex = 5)),
                   ],
                 ),
@@ -163,6 +231,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // --- UI ATOM COMPONENTS ---
+
+  Widget _buildStreamStatCard(
+    String title, 
+    Stream<QuerySnapshot> stream, 
+    String Function(QuerySnapshot) formatter,
+    IconData icon, Color color, VoidCallback onTap) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: stream,
+      builder: (context, snapshot) {
+        String val = "0";
+        if (snapshot.hasData) {
+          val = formatter(snapshot.data!);
+        }
+        return _buildStatCard(title, val, icon, color, onTap);
+      },
+    );
+  }
 
   Widget _buildStatCard(String title, String val, IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
@@ -265,7 +350,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: InkWell(
         onTap: () {
           setState(() => _selectedIndex = index);
-          if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
+          if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+            Navigator.pop(context);
+          }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

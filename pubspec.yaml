@@ -24,6 +24,9 @@ dependencies:
   # Feature Packages
   mobile_scanner: ^5.2.1
   image_picker: ^1.0.7        # ✅ ADDED (for picking images)
+  qr_flutter: ^4.1.0
+  fl_chart: ^1.1.1
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:

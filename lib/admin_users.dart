@@ -7,75 +7,104 @@ class ManageUsersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const Color twinGreen = Color(0xFF1DB98A);
-    const Color darkBg = Color(0xFF0F172A);
+    const Color bgDark = Color(0xFF0F172A);
     const Color cardBg = Color(0xFF1E293B);
 
-    return Scaffold(
-      backgroundColor: darkBg,
-      appBar: AppBar(
-        title: const Text('Manage Users', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: cardBg,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const Center(child: Text("Error loading users", style: TextStyle(color: Colors.white)));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: twinGreen));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isMobile = constraints.maxWidth < 750;
 
-          final users = snapshot.data!.docs;
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: isMobile 
+            ? AppBar(
+                title: const Text('Manage Users', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                backgroundColor: bgDark,
+                elevation: 0,
+                iconTheme: const IconThemeData(color: Colors.white),
+              )
+            : null,
+          body: Padding(
+            padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isMobile)
+                  const Text("Manage Users", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                
+                if (!isMobile) const SizedBox(height: 32),
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final userData = users[index].data() as Map<String, dynamic>;
-              final String docId = users[index].id;
-              final String name = userData['name'] ?? 'No Name';
-              final String email = userData['email'] ?? 'No Email';
-              final String firstLetter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) return const Center(child: Text("Error loading users", style: TextStyle(color: Colors.white)));
+                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: twinGreen));
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(15),
+                      final users = snapshot.data!.docs;
+
+                      return ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: users.length,
+                        itemBuilder: (context, index) {
+                          final userData = users[index].data() as Map<String, dynamic>;
+                          final String docId = users[index].id;
+                          final String name = userData['name'] ?? 'No Name';
+                          final String email = userData['email'] ?? 'No Email';
+                          final String firstLetter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: twinGreen.withOpacity(0.2),
+                                  child: Text(firstLetter, style: const TextStyle(color: Color(0xFF1DB98A), fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      Text(email, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    ],
+                                  ),
+                                ),
+                                // --- EDIT BUTTON ---
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                                  onPressed: () => _showEditUserDialog(context, docId, userData),
+                                ),
+                                const SizedBox(width: 12),
+                                // --- DELETE BUTTON ---
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _confirmDelete(context, docId, name),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: twinGreen,
-                      child: Text(firstLetter, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text(email, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                    // --- EDIT BUTTON ---
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
-                      onPressed: () => _showEditUserDialog(context, docId, userData),
-                    ),
-                    // --- DELETE BUTTON ---
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                      onPressed: () => _confirmDelete(context, docId, name),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

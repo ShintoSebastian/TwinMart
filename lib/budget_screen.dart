@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';    
+import 'dart:async'; 
 
 class BudgetScreen extends StatefulWidget {
-  // 1. Added callback to notify MainWrapper to change the tab index
   final VoidCallback onBackToDashboard; 
   
   const BudgetScreen({super.key, required this.onBackToDashboard});
@@ -14,19 +16,22 @@ class _BudgetScreenState extends State<BudgetScreen> {
   // --- STATE DATA ---
   double totalBudget = 5000.0;
   double originalMonthlyBudget = 5000.0; 
-  double spent = 2890.0;
+  double spent = 0.0; 
   int editsRemaining = 2; 
+  bool isLoading = true; 
   
+  Map<String, double> categorySpentMap = {};
+
   final TextEditingController _budgetController = TextEditingController();
 
   double get remaining => totalBudget - spent;
-  double get progressValue => (spent / totalBudget).clamp(0.0, 1.0);
+  double get progressValue => totalBudget > 0 ? (spent / totalBudget).clamp(0.0, 1.0) : 0.0;
   double get maxIncreaseAllowed => originalMonthlyBudget * 0.5; 
 
   Map<String, double> splitPercentages = {
     'Groceries': 35.0,
     'Food & Dining': 26.0,
-    'Transport': 16.0,
+    'Digitals': 16.0, 
     'Utilities': 11.0,
     'Entertainment': 11.0,
   };
@@ -34,7 +39,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   final Map<String, IconData> catIcons = {
     'Groceries': Icons.shopping_cart_outlined,
     'Food & Dining': Icons.restaurant, 
-    'Transport': Icons.directions_car_filled_outlined,
+    'Digitals': Icons.devices_other, 
     'Utilities': Icons.bolt,
     'Entertainment': Icons.coffee_rounded,
   };
@@ -42,10 +47,104 @@ class _BudgetScreenState extends State<BudgetScreen> {
   final Map<String, Color> catColors = {
     'Groceries': const Color(0xFF1DB98A),
     'Food & Dining': Colors.orange,
-    'Transport': Colors.teal,
+    'Digitals': Colors.teal, 
     'Utilities': Colors.orangeAccent,
     'Entertainment': const Color(0xFF1DB98A),
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBudgetData(); 
+  }
+
+  Future<void> _loadBudgetData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => isLoading = false);
+      return;
+    }
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('budget')
+        .doc('settings');
+
+    try {
+      final doc = await docRef.get().timeout(const Duration(seconds: 10));
+
+      if (!doc.exists) {
+        await docRef.set({
+          'budget_limit': 5000.0,
+          'category_spending': {
+            'Digitals': 0.0,
+            'Food & Dining': 0.0,
+            'Groceries': 0.0,
+            'Utilities': 0.0,
+            'Entertainment': 0.0,
+          },
+          'split_percentages': splitPercentages,
+        }).timeout(const Duration(seconds: 10));
+      }
+
+      final freshDoc = await docRef.get().timeout(const Duration(seconds: 10));
+      final data = freshDoc.data(); // This is Map<String, dynamic>?
+
+      if (mounted && data != null) {
+        setState(() {
+          totalBudget = (data['budget_limit'] ?? 5000.0).toDouble();
+          originalMonthlyBudget = totalBudget;
+          
+          // Fixed potential null access with safe casting
+          var cats = data['category_spending'] as Map<String, dynamic>? ?? {};
+          categorySpentMap = cats.map((key, value) => MapEntry(key, (value ?? 0.0).toDouble()));
+          spent = categorySpentMap.values.fold(0.0, (sum, v) => sum + v);
+
+          // Fixed potential null access with safe casting
+          var savedSplits = data['split_percentages'] as Map<String, dynamic>?;
+          if (savedSplits != null) {
+            splitPercentages = savedSplits.map((key, value) => MapEntry(key, (value ?? 0.0).toDouble()));
+          }
+          
+          isLoading = false; 
+        });
+      } else if (mounted) {
+        setState(() => isLoading = false);
+      }
+    } on TimeoutException catch (_) {
+      if (mounted) setState(() => isLoading = false);
+    } catch (e) {
+      debugPrint("Error loading budget: $e");
+      if (mounted) setState(() => isLoading = false); 
+    }
+  }
+
+  Future<void> _updateBudgetInFirestore(double newLimit) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users').doc(user.uid)
+        .collection('budget').doc('settings')
+        .update({'budget_limit': newLimit}).timeout(const Duration(seconds: 10));
+    
+    _loadBudgetData(); 
+  }
+
+  Future<void> _syncSplitsToFirestore() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users').doc(user.uid)
+          .collection('budget').doc('settings')
+          .update({'split_percentages': splitPercentages}).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint("Error syncing splits: $e");
+    }
+  }
 
   void _showEditBudgetDialog() {
     if (editsRemaining <= 0) {
@@ -91,6 +190,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 return;
               }
 
+              _updateBudgetInFirestore(newValue);
               setState(() {
                 totalBudget = newValue;
                 editsRemaining--; 
@@ -107,24 +207,32 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   void _updateSplit(String changedCategory, double newValue) {
     setState(() {
-      double oldValue = splitPercentages[changedCategory]!;
+      double oldValue = splitPercentages[changedCategory] ?? 0.0;
       double difference = newValue - oldValue;
       splitPercentages[changedCategory] = newValue;
 
       List<String> others = splitPercentages.keys.where((k) => k != changedCategory).toList();
-      double perCategoryDiff = difference / others.length;
-
-      for (var cat in others) {
-        double currentVal = splitPercentages[cat]!;
-        splitPercentages[cat] = (currentVal - perCategoryDiff).clamp(5.0, 100.0);
+      if (others.isNotEmpty) {
+        double perCategoryDiff = difference / others.length;
+        for (var cat in others) {
+          double currentVal = splitPercentages[cat] ?? 0.0;
+          splitPercentages[cat] = (currentVal - perCategoryDiff).clamp(0.0, 100.0);
+        }
       }
     });
+    _syncSplitsToFirestore();
   }
 
   double get totalAllocated => splitPercentages.values.fold(0, (sum, item) => sum + item);
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(color: Color(0xFF1DB98A)),
+      ),
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F8),
       body: SafeArea(
@@ -145,14 +253,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  // --- HEADER UPDATED WITH BACK BUTTON ---
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
           GestureDetector(
-            onTap: widget.onBackToDashboard, // Swaps index to 0 in MainWrapper
+            onTap: widget.onBackToDashboard, 
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -173,15 +280,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
               ],
             ),
           ),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: _showBudgetSplitter,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey[100]!)),
-                child: const Icon(Icons.bar_chart, color: Colors.black87), 
-              ),
+          GestureDetector(
+            onTap: _showBudgetSplitter,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey[100]!)),
+              child: const Icon(Icons.bar_chart, color: Colors.black87), 
             ),
           ),
         ],
@@ -318,13 +422,23 @@ class _BudgetScreenState extends State<BudgetScreen> {
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Category Spending', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), 
-            GestureDetector(onTap: () {}, child: const Row(children: [Text("View All", style: TextStyle(color: Colors.grey, fontSize: 12)), Icon(Icons.chevron_right, color: Colors.grey, size: 16)]))
+            const Icon(Icons.chevron_right, color: Colors.grey, size: 16)
           ]),
           const SizedBox(height: 20),
-          _spendingRow("Groceries", 0.6, const Color(0xFF1DB98A), Icons.shopping_cart_outlined, "₹1200 / ₹2000"),
-          _spendingRow("Food & Dining", 0.59, Colors.orange, Icons.restaurant, "₹890 / ₹1500"),
-          _spendingRow("Transport", 0.81, Colors.teal, Icons.directions_car_outlined, "₹650 / ₹800"),
-          _spendingRow("Utilities", 0.96, Colors.deepOrange, Icons.bolt, "₹480 / ₹500"),
+          ...splitPercentages.keys.map((catName) {
+            double percent = splitPercentages[catName] ?? 0.0;
+            double limit = (totalBudget * percent) / 100;
+            double currentSpent = categorySpentMap[catName] ?? 0.0;
+            double prog = limit > 0 ? (currentSpent / limit).clamp(0.0, 1.0) : 0.0;
+
+            return _spendingRow(
+              catName, 
+              prog, 
+              catColors[catName] ?? Colors.teal, 
+              catIcons[catName] ?? Icons.help_outline, 
+              "₹${currentSpent.toInt()} / ₹${limit.toInt()}"
+            );
+          }),
         ],
       ),
     );
@@ -342,6 +456,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Widget _buildRecentTransactions() {
+    final user = FirebaseAuth.instance.currentUser;
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -349,22 +464,28 @@ class _BudgetScreenState extends State<BudgetScreen> {
         children: [
           const Text('Recent Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 15),
-          _transactionItem("Fresh Milk 1L", "Today", "-₹65", "🥛"),
-          _transactionItem("Organic Apples 1kg", "Today", "-₹180", "🍎"),
-          _transactionItem("Whole Wheat Bread", "Yesterday", "-₹45", "🍞"),
-          _transactionItem("Greek Yogurt", "Yesterday", "-₹89", "🥛"),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users').doc(user?.uid).collection('transactions')
+                .orderBy('timestamp', descending: true).limit(5).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Text("No scans yet.");
+              return Column(
+                children: snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(backgroundColor: Color(0xFFF4F9F8), child: Icon(Icons.shopping_bag_outlined)),
+                    title: Text(data['productName'] ?? 'Item', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(data['category'] ?? 'Offline Scan'),
+                    trailing: Text("-₹${data['price']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _transactionItem(String title, String date, String price, String emoji) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(backgroundColor: const Color(0xFFF4F9F8), child: Text(emoji)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(date),
-      trailing: Text(price, style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 
@@ -414,9 +535,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Column(
                     children: [
-                      ...splitPercentages.keys.map((cat) => _buildSplitRow(cat, splitPercentages[cat]!, (val) {
+                      ...splitPercentages.keys.map((cat) => _buildSplitRow(cat, splitPercentages[cat] ?? 0.0, (val) {
                         setModalState(() => _updateSplit(cat, val));
-                      })).toList(),
+                      })),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -457,7 +578,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(backgroundColor: catColors[name]!.withOpacity(0.1), child: Icon(catIcons[name], color: catColors[name], size: 20)),
+              CircleAvatar(backgroundColor: (catColors[name] ?? Colors.teal).withOpacity(0.1), child: Icon(catIcons[name] ?? Icons.help, color: catColors[name] ?? Colors.teal, size: 20)),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -484,7 +605,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Widget _buildAllocationSummary() {
-    bool isOver = totalAllocated > 100;
+    bool isOver = totalAllocated > 100.1; 
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 15, 25, 40),
       decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
@@ -499,20 +620,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
           const SizedBox(height: 12),
           Row(
-            children: splitPercentages.keys.map((cat) => _allocationSegment(splitPercentages[cat]! / 100, catColors[cat]!)).toList(),
+            children: splitPercentages.keys.map((cat) {
+              int flexValue = ((splitPercentages[cat] ?? 0.0) * 10).toInt().clamp(1, 1000);
+              return Expanded(
+                flex: flexValue,
+                child: Container(
+                  height: 10,
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(color: catColors[cat] ?? Colors.teal, borderRadius: BorderRadius.circular(5)),
+                ),
+              );
+            }).toList(),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _allocationSegment(double weight, Color color) {
-    return Expanded(
-      flex: (weight * 100).toInt(),
-      child: Container(
-        height: 10,
-        margin: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5)),
       ),
     );
   }

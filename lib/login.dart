@@ -7,6 +7,7 @@ import 'admin_dashboard.dart';
 import 'intro_page.dart';
 import 'animated_route.dart';
 import 'forgot_password_screen.dart'; // ✅ Ensure this file is created
+import 'package:twinmart_app/theme/twinmart_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -163,21 +164,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-              color: green, borderRadius: BorderRadius.circular(10)),
-          child:
-              const Icon(Icons.add_shopping_cart, color: Colors.white, size: 26),
-        ),
-        const SizedBox(width: 10),
-        const Text('Twin',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-        const Text('Mart',
-            style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1DB98A))),
+        TwinMartTheme.brandLogo(size: 32),
+        const SizedBox(width: 12),
+        TwinMartTheme.brandText(fontSize: 32),
       ],
     );
   }
@@ -251,9 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
+      _showErrorDialog("Wait a moment!", "Please fill in both your email and password to continue.");
       return;
     }
 
@@ -285,13 +272,72 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Login failed')),
-      );
+      String errorMessage = "Something went wrong. Please check your internet connection and try again.";
+      
+      if (e.code == 'user-not-found') {
+        errorMessage = "No account found for this email. Would you like to create one?";
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMessage = "The password you entered is incorrect. Please try again or reset your password.";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "That email address doesn't look quite right. Please check for typos.";
+      } else if (e.code == 'user-disabled') {
+        errorMessage = "This account has been disabled. Please contact support.";
+      }
+
+      _showErrorDialog("Login Failed", errorMessage);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 60,
+                width: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 35),
+              ),
+              const SizedBox(height: 20),
+              Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 15, height: 1.5),
+              ),
+              const SizedBox(height: 25),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1DB98A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 0,
+                  ),
+                  child: const Text("Got it", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

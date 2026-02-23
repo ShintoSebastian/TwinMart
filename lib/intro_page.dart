@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_wrapper.dart';
+import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'dart:ui' as ui;
 
 class IntroPage extends StatefulWidget {
   const IntroPage({super.key});
@@ -83,119 +85,137 @@ class _IntroPageState extends State<IntroPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: TextButton(
-                  onPressed: _goToDashboard,
-                  child: const Text("Skip",
-                      style: TextStyle(color: Colors.grey)),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Welcome 👋",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text(
-                "Everything you need in one smart app",
-                style: TextStyle(color: Colors.grey),
-              ),
-
-              const SizedBox(height: 30),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _animatedTile(
-                        _slide1,
-                        _fade1,
-                        FeatureTile(
-                          icon: Icons.account_balance_wallet_rounded,
-                          color: Colors.green,
-                          title: "Smart Budget",
-                          description:
-                              "Set monthly budgets, track expenses, and get alerts when you're near your limit.",
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      _animatedTile(
-                        _slide2,
-                        _fade2,
-                        FeatureTile(
-                          icon: Icons.qr_code_scanner,
-                          color: Colors.teal,
-                          title: "Scan & Shop",
-                          description:
-                              "Scan barcodes in-store, track spending, and skip the queue with self-checkout.",
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      _animatedTile(
-                        _slide3,
-                        _fade3,
-                        FeatureTile(
-                          icon: Icons.shopping_bag_rounded,
-                          color: Colors.orange,
-                          title: "Online Store",
-                          description:
-                              "Browse products, add to wishlist, and order for delivery or pickup.",
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      _animatedTile(
-                        _slide4,
-                        _fade4,
-                        FeatureTile(
-                          icon: Icons.bar_chart_rounded,
-                          color: Colors.purple,
-                          title: "Statistical Report",
-                          description:
-                              "View monthly spending reports, purchase trends, and performance summaries.",
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _goToDashboard,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    "Let's Go →",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
+      backgroundColor: TwinMartTheme.bgLight,
+      body: Stack(
+        children: [
+          TwinMartTheme.bgBlob(
+            top: -100,
+            left: -100,
+            size: 300,
+            color: TwinMartTheme.brandGreen.withOpacity(0.2),
           ),
-        ),
+          TwinMartTheme.bgBlob(
+            bottom: -50,
+            right: -80,
+            size: 280,
+            color: TwinMartTheme.brandBlue.withOpacity(0.15),
+          ),
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: TextButton(
+                        onPressed: _goToDashboard,
+                        child: const Text("Skip",
+                            style: TextStyle(color: Colors.grey)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TwinMartTheme.brandLogo(size: 32),
+                        const SizedBox(width: 12),
+                        TwinMartTheme.brandText(fontSize: 32),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Welcome 👋",
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Everything you need in one smart app",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 30),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _animatedTile(
+                              _slide1,
+                              _fade1,
+                              const FeatureTile(
+                                icon: Icons.account_balance_wallet_rounded,
+                                color: TwinMartTheme.brandGreen,
+                                title: "Smart Budget",
+                                description:
+                                    "Set monthly budgets, track expenses, and get alerts when you're near your limit.",
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            _animatedTile(
+                              _slide2,
+                              _fade2,
+                              const FeatureTile(
+                                icon: Icons.qr_code_scanner,
+                                color: TwinMartTheme.brandGreen,
+                                title: "Scan & Shop",
+                                description:
+                                    "Scan barcodes in-store, track spending, and skip the queue with self-checkout.",
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            _animatedTile(
+                              _slide3,
+                              _fade3,
+                              const FeatureTile(
+                                icon: Icons.shopping_bag_rounded,
+                                color: Colors.orange,
+                                title: "Online Store",
+                                description:
+                                    "Browse products, add to wishlist, and order for delivery or pickup.",
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            _animatedTile(
+                              _slide4,
+                              _fade4,
+                              const FeatureTile(
+                                icon: Icons.bar_chart_rounded,
+                                color: Colors.purple,
+                                title: "Statistical Report",
+                                description:
+                                    "View monthly spending reports, purchase trends, and performance summaries.",
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _goToDashboard,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TwinMartTheme.brandGreen,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          "Let's Go →",
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -240,12 +260,22 @@ class _FeatureTileState extends State<FeatureTile> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) {
+        if (mounted) setState(() => _isHovered = true);
+      },
+      onExit: (_) {
+        if (mounted) setState(() => _isHovered = false);
+      },
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _isHovered = true),
-        onTapUp: (_) => setState(() => _isHovered = false),
-        onTapCancel: () => setState(() => _isHovered = false),
+        onTapDown: (_) {
+          if (mounted) setState(() => _isHovered = true);
+        },
+        onTapUp: (_) {
+          if (mounted) setState(() => _isHovered = false);
+        },
+        onTapCancel: () {
+          if (mounted) setState(() => _isHovered = false);
+        },
         child: AnimatedScale(
           scale: _isHovered ? 1.05 : 1.0,
           duration: const Duration(milliseconds: 200),

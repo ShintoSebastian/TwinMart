@@ -7,6 +7,7 @@ import 'cart_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'main_wrapper.dart';
 import 'package:twinmart_app/firebase_options.dart';
+import 'theme/twinmart_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,22 +70,9 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: twinGreen,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 32),
-                ),
+                TwinMartTheme.brandLogo(size: 32),
                 const SizedBox(height: 12),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Twin', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
-                    Text('Mart', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: twinGreen)),
-                  ],
-                ),
+                TwinMartTheme.brandText(fontSize: 26),
                 const SizedBox(height: 48),
 
                 const Text(

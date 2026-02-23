@@ -1,49 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'dart:ui' as ui;
 
 class OrderHistoryScreen extends StatelessWidget {
   const OrderHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Get the current user's ID to fetch only their orders
     final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Order History", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: userId.isEmpty 
-        ? const Center(child: Text("Please login to view orders"))
-        : StreamBuilder<QuerySnapshot>(
-            // Fetching orders specific to the logged-in user
-            stream: FirebaseFirestore.instance
-                .collection('orders')
-                .where('userId', isEqualTo: userId)
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Color(0xFF1DB98A)));
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text("No orders found."));
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: snapshot.data!.docs.length,
-                itemBuilder: (context, index) {
-                  var order = snapshot.data!.docs[index];
-                  return _buildOrderCard(order);
-                },
-              );
-            },
+      backgroundColor: TwinMartTheme.bgLight,
+      body: Stack(
+        children: [
+          TwinMartTheme.bgBlob(
+            top: -120,
+            left: -100,
+            size: 320,
+            color: TwinMartTheme.brandGreen.withOpacity(0.2),
           ),
+          TwinMartTheme.bgBlob(
+            bottom: -80,
+            right: -100,
+            size: 300,
+            color: TwinMartTheme.brandBlue.withOpacity(0.15),
+          ),
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            child: Column(
+              children: [
+                _buildAppBar(context),
+                Expanded(
+                  child: userId.isEmpty
+                      ? const Center(child: Text("Please login to view orders"))
+                      : StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('orders')
+                              .where('userId', isEqualTo: userId)
+                              .orderBy('timestamp', descending: true)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator(
+                                      color: TwinMartTheme.brandGreen));
+                            }
+                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                              return const Center(child: Text("No orders found."));
+                            }
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: snapshot.data!.docs.length,
+                              itemBuilder: (context, index) {
+                                var order = snapshot.data!.docs[index];
+                                return _buildOrderCard(order);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 50, left: 10, right: 10, bottom: 10),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: TwinMartTheme.darkText),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 5),
+          TwinMartTheme.brandLogo(size: 20),
+          const SizedBox(width: 8),
+          TwinMartTheme.brandText(fontSize: 22),
+          const Spacer(),
+          const Text("Orders",
+              style: TextStyle(
+                  color: TwinMartTheme.darkText, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 15),
+        ],
+      ),
     );
   }
 

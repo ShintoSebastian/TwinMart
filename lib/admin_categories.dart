@@ -29,7 +29,7 @@ class ManageCategoriesPage extends StatelessWidget {
           ),
           content: SingleChildScrollView(
             child: SizedBox(
-              width: 450,
+              width: MediaQuery.of(context).size.width * 0.9,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +121,7 @@ class ManageCategoriesPage extends StatelessWidget {
               )
             : null,
           body: Padding(
-            padding: EdgeInsets.all(isMobile ? 16.0 : 32.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 8.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -158,13 +158,13 @@ class ManageCategoriesPage extends StatelessWidget {
                     child: Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(24.0),
+                          padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
                           child: Row(
                             children: [
-                              const Expanded(flex: 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold))),
+                              const Expanded(flex: 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                               if (!isMobile)
-                                const Expanded(flex: 3, child: Text("Description", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold))),
-                              const Expanded(child: Text("Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold))),
+                                const Expanded(flex: 3, child: Text("Description", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              const Expanded(child: Text("Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -195,10 +195,10 @@ class ManageCategoriesPage extends StatelessWidget {
                                   final data = doc.data() as Map<String, dynamic>;
 
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
                                     child: Row(
                                       children: [
-                                        Expanded(flex: 2, child: Text(data['name'] ?? "", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500))),
+                                        Expanded(flex: 2, child: Text(data['name'] ?? "", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                         if (!isMobile)
                                           Expanded(flex: 3, child: Text(data['description'] ?? "", style: const TextStyle(color: Colors.blueGrey, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                         Expanded(
@@ -206,10 +206,15 @@ class ManageCategoriesPage extends StatelessWidget {
                                             mainAxisAlignment: MainAxisAlignment.end,
                                             children: [
                                               IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
                                                 icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
                                                 onPressed: () => _showCategoryDialog(context, doc: doc), // Trigger edit
                                               ),
+                                              const SizedBox(width: 8),
                                               IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
                                                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                                                 onPressed: () => _showDeleteDialog(context, doc.id), // Trigger delete
                                               ),
