@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ Added for Wishlist
+import 'package:firebase_auth/firebase_auth.dart';
 import 'cart_provider.dart';
 import 'cart_screen.dart';
+import 'product_details_screen.dart';
+import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'dart:ui' as ui;
 
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({super.key});
+  final bool isEmbedded;
+  final String? initialCategory;
+  const ShopScreen({super.key, this.isEmbedded = false, this.initialCategory});
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -18,59 +23,126 @@ class _ShopScreenState extends State<ShopScreen> {
   bool isGridView = true;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialCategory != null) {
+      selectedCategoryName = widget.initialCategory!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(ShopScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != null && widget.initialCategory != oldWidget.initialCategory) {
+      setState(() {
+        selectedCategoryName = widget.initialCategory!;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const Color twinGreen = Color(0xFF1DB98A);
+    const Color twinGreen = TwinMartTheme.brandGreen;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        int crossAxisCount =
-            constraints.maxWidth > 1200 ? 4 : (constraints.maxWidth > 800 ? 3 : 2);
-        double hPad =
-            constraints.maxWidth > 1200 ? constraints.maxWidth * 0.05 : 20.0;
+    if (widget.isEmbedded) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          int crossAxisCount = constraints.maxWidth > 1200 ? 4 : (constraints.maxWidth > 800 ? 3 : 2);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPageTitle(),
+              _buildSubHeader(twinGreen),
+              _buildDynamicCategoryBar(twinGreen),
+              const SizedBox(height: 20),
+              _buildDynamicProductContent(twinGreen, crossAxisCount),
+            ],
+          );
+        },
+      );
+    }
 
-        return Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: hPad),
-                    child: _buildPageTitle(),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: hPad),
-                    child: _buildSubHeader(twinGreen),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: hPad),
-                    child: _buildDynamicCategoryBar(twinGreen),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
-                    child: _buildDynamicProductContent(twinGreen, crossAxisCount),
-                  ),
-                  const SizedBox(height: 110),
-                ],
-              ),
+    return Scaffold(
+      backgroundColor: TwinMartTheme.bgLight,
+      body: Stack(
+        children: [
+          TwinMartTheme.bgBlob(
+            top: -150,
+            left: -100,
+            size: 350,
+            color: TwinMartTheme.brandGreen.withOpacity(0.25),
+          ),
+          TwinMartTheme.bgBlob(
+            bottom: -50,
+            right: -80,
+            size: 300,
+            color: TwinMartTheme.brandBlue.withOpacity(0.2),
+          ),
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                int crossAxisCount = constraints.maxWidth > 1200 ? 4 : (constraints.maxWidth > 800 ? 3 : 2);
+                double hPad = constraints.maxWidth > 1200 ? constraints.maxWidth * 0.05 : 20.0;
+
+                return Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 50),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: hPad),
+                            child: _buildPageTitle(),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: hPad),
+                            child: _buildSubHeader(twinGreen),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: hPad),
+                            child: _buildDynamicCategoryBar(twinGreen),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+                            child: _buildDynamicProductContent(twinGreen, crossAxisCount),
+                          ),
+                          const SizedBox(height: 110),
+                        ],
+                      ),
+                    ),
+                    _buildFloatingCartBar(twinGreen),
+                  ],
+                );
+              },
             ),
-            _buildFloatingCartBar(twinGreen),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildPageTitle() => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 15),
+  Widget _buildPageTitle() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Browse Products",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            Text("Discover fresh groceries and essentials",
-                style: TextStyle(color: Colors.grey)),
+            if (!widget.isEmbedded) ...[
+              Row(
+                children: [
+                  TwinMartTheme.brandLogo(size: 20),
+                  const SizedBox(width: 8),
+                  TwinMartTheme.brandText(fontSize: 20),
+                ],
+              ),
+              const SizedBox(height: 15),
+            ],
+            const Text("Browse Products",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: TwinMartTheme.darkText)),
+            const Text("Discover fresh groceries and essentials",
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -86,14 +158,18 @@ class _ShopScreenState extends State<ShopScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: green.withOpacity(0.6)),
+                border: Border.all(color: green.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+                ],
               ),
               child: TextField(
                 onChanged: (val) => setState(() => searchQuery = val),
                 decoration: const InputDecoration(
                   hintText: "Search products...",
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey),
                   border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 15),
                 ),
               ),
             ),
@@ -188,23 +264,32 @@ class _ShopScreenState extends State<ShopScreen> {
               return GestureDetector(
                 onTap: () =>
                     setState(() => selectedCategoryName = c['name'] as String),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.only(right: 12, bottom: 10, top: 5),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
                     color: active ? green : Colors.white,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: active ? green.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
                   ),
                   child: Row(
                     children: [
-                      Text(c['emoji'] as String),
+                      Text(c['emoji'] as String, style: const TextStyle(fontSize: 16)),
                       const SizedBox(width: 8),
                       Text(
                         c['name'] as String,
                         style: TextStyle(
-                            color: active ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.bold),
+                            color: active ? Colors.white : TwinMartTheme.darkText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
                       ),
                     ],
                   ),
@@ -293,8 +378,6 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 }
 
-// ================= PRODUCT CARD =================
-
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final Color green;
@@ -304,7 +387,6 @@ class _ProductCard extends StatelessWidget {
     required this.green,
   });
 
-  // ✅ Wishlist Toggle Logic
   Future<void> _toggleWishlist(String userId, String productId) async {
     final wishlistRef = FirebaseFirestore.instance
         .collection('users')
@@ -339,118 +421,107 @@ class _ProductCard extends StatelessWidget {
 
     return Stack(
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Center(
-                  child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          height: 75,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Text("🛍️", style: TextStyle(fontSize: 38)),
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                strokeWidth: 2,
-                              ),
-                            );
-                          },
-                        )
-                      : const Text("🛍️", style: TextStyle(fontSize: 38)),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductDetailsScreen(product: product),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Hero(
+                      tag: 'product-$productId',
+                      child: imageUrl != null
+                          ? Image.network(
+                              imageUrl,
+                              height: 75,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Text("🛍️", style: TextStyle(fontSize: 38)),
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              },
+                            )
+                          : const Text("🛍️", style: TextStyle(fontSize: 38)),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                product['name'] ?? "Product",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("₹$price",
-                      style: TextStyle(
-                          color: green,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
-                  qty == 0
-                      ? GestureDetector(
-                          onTap: () {
-                            cart.addToCart({
-                              'id': productId,
-                              'name': product['name'],
-                              'price': price,
-                              'image': imageUrl ?? "🛍️",
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: green,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add,
-                                size: 16, color: Colors.white),
-                          ),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                const SizedBox(height: 8),
+                Text(
+                  product['name'] ?? "Product",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                if (product['offerLine'] != null && product['offerLine'].toString().isNotEmpty)
+                   Padding(
+                     padding: const EdgeInsets.only(top: 2),
+                     child: Text(
+                       product['offerLine'],
+                       style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                     ),
+                   ),
+                const SizedBox(height: 4),
+                // Price Section (Amazon Style)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (product['originalPrice'] != null && (product['originalPrice'] as num) > price)
+                      Text(
+                        "₹${(product['originalPrice'] as num).toInt()}",
+                        style: const TextStyle(color: Colors.grey, fontSize: 10, decoration: TextDecoration.lineThrough),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            border: Border.all(color: green.withOpacity(0.5)),
-                            borderRadius: BorderRadius.circular(15),
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => cart.removeSingleItem(productId),
-                                child: Icon(Icons.remove, color: green, size: 16),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Text(
-                                  qty.toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  cart.addToCart({
-                                    'id': productId,
-                                    'name': product['name'],
-                                    'price': price,
-                                    'image': imageUrl ?? "🛍️",
-                                  });
-                                },
-                                child: Icon(Icons.add, color: green, size: 16),
-                              ),
-                            ],
+                          child: Text(
+                            "₹${price.toInt()}",
+                            style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900),
                           ),
                         ),
-                ],
-              ),
-            ],
+                        _buildCartButton(cart, productId, price, imageUrl),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Text("*including bank and coupon offer", style: TextStyle(color: Colors.grey, fontSize: 7)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        // ✅ Wishlist Icon Overlay
         if (userId.isNotEmpty)
           Positioned(
             top: 8,
@@ -490,5 +561,95 @@ class _ProductCard extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  Widget _buildCartButton(CartProvider cart, String productId, double price, String? imageUrl) {
+    final int qty = cart.items[productId]?.quantity ?? 0;
+    
+    if (qty == 0) {
+      return GestureDetector(
+        onTap: () {
+          cart.addToCart({
+            'id': productId,
+            'name': product['name'],
+            'price': price,
+            'image': imageUrl ?? "🛍️",
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: green,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: green.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: const Text(
+            "Add to Cart",
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12),
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        height: 36,
+        constraints: const BoxConstraints(minWidth: 90),
+        decoration: BoxDecoration(
+          color: green,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: green.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            GestureDetector(
+              onTap: () => cart.removeSingleItem(productId),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(
+                    qty == 1 ? Icons.delete_outline : Icons.remove,
+                    color: Colors.white,
+                    size: 18),
+              ),
+            ),
+            Text(
+              qty.toString(),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.white),
+            ),
+            GestureDetector(
+              onTap: () {
+                cart.addToCart({
+                  'id': productId,
+                  'name': product['name'],
+                  'price': price,
+                  'image': imageUrl ?? "🛍️",
+                });
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.add, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

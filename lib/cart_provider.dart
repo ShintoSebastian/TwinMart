@@ -7,6 +7,7 @@ class CartItem {
   final int quantity;
   final double price;
   final String image;
+  final String category;
 
   CartItem({
     required this.id,
@@ -14,6 +15,7 @@ class CartItem {
     required this.quantity,
     required this.price,
     required this.image,
+    this.category = 'Others',
   });
 }
 
@@ -51,6 +53,7 @@ class CartProvider with ChangeNotifier {
           name: existingItem.name,
           price: existingItem.price,
           image: existingItem.image,
+          category: existingItem.category,
           quantity: existingItem.quantity + 1,
         ),
       );
@@ -65,6 +68,7 @@ class CartProvider with ChangeNotifier {
           price: (product['price'] ?? 0.0).toDouble(), 
           // Handle both 'image' and admin panel 'imageUrl' fields
           image: product['image'] ?? product['imageUrl'] ?? '🛍️',
+          category: product['category'] ?? 'Others',
           quantity: 1,
         ),
       );

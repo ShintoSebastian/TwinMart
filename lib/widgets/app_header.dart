@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/twinmart_theme.dart';
 
 class AppHeader extends StatelessWidget {
   const AppHeader({Key? key}) : super(key: key);
@@ -6,23 +7,16 @@ class AppHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFE8F5F0),
+      color: TwinMartTheme.bgLight,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              const Icon(Icons.shopping_cart, color: Color(0xFF1ABC9C)),
+              TwinMartTheme.brandLogo(size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'TwinMart',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
+              TwinMartTheme.brandText(fontSize: 24),
             ],
           ),
           Row(
