@@ -36,6 +36,14 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
     }
     final specsController = TextEditingController(text: specsString);
     
+    // Product Information (General) map to string
+    String infoString = "";
+    if (doc != null && (doc.data() as Map).containsKey('generalInfo')) {
+      final Map<String, dynamic> info = doc['generalInfo'];
+      infoString = info.entries.map((e) => "${e.key}: ${e.value}").join('\n');
+    }
+    final infoController = TextEditingController(text: infoString);
+    
     // ✅ NEW: Controllers for Inventory
     final barcodeController = TextEditingController(
       text: doc != null && (doc.data() as Map).containsKey('barcode') ? doc['barcode'] : ""
@@ -107,6 +115,9 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
 
                       _buildLabel("Specifications (Key: Value per line)"),
                       _buildDialogTextField("Brand: Apple\nColor: Silver", specsController, maxLines: 5),
+
+                      _buildLabel("Product Information (Key: Value per line)"),
+                      _buildDialogTextField("Material: Cotton\nOrigin: India", infoController, maxLines: 5),
                       
                       // ✅ NEW: Offline Toggle
                       Padding(
@@ -156,6 +167,7 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                    offerLineController,
                    isOffline, 
                    selectedCategory, 
+                   infoController, // ✅ NEW
                    docId: doc?.id
                 ),
               ],
@@ -182,7 +194,8 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
        TextEditingController originalPrice,
        TextEditingController offerLine,
        bool isOffline, 
-       String category, 
+       String category,
+       TextEditingController generalInfo, // ✅ NEW
        {String? docId}) {
     return GestureDetector(
       onTap: () async {
@@ -206,6 +219,18 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
            }
          }
 
+         // ✅ Parse general info map
+         Map<String, String> infoMap = {};
+         if (generalInfo.text.trim().isNotEmpty) {
+           final lines = generalInfo.text.split('\n');
+           for (var line in lines) {
+             if (line.contains(':')) {
+               final parts = line.split(':');
+               infoMap[parts[0].trim()] = parts[1].trim();
+             }
+           }
+         }
+
          // ✅ Updated data map with offline fields, images and specs
          final data = {
            'name': name.text.trim(),
@@ -216,6 +241,7 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
            'imageUrl': url.text.trim(),
            'images': imagesList,
            'specifications': specsMap,
+           'generalInfo': infoMap, // ✅ NEW
            'barcode': barcode.text.trim(), 
            'stock': int.tryParse(stock.text) ?? 50,
            'threshold': int.tryParse(threshold.text) ?? 10,

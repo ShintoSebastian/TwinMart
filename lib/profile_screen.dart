@@ -10,6 +10,8 @@ import 'wishlist_screen.dart';
 import 'notifications_screen.dart'; 
 import 'help_support_screen.dart'; 
 import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'package:twinmart_app/theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 import 'dart:ui' as ui;
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBackToDashboard; 
@@ -85,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -114,9 +116,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 25),
                     _buildStatsRow(),
                     const SizedBox(height: 30),
-                    const Text(
+                    Text(
                       "Settings",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20, 
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.titleLarge?.color
+                      ),
                     ),
                     const SizedBox(height: 15),
                     _buildSettingsCard(),
@@ -140,40 +146,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           children: [
             GestureDetector(
-              onTap: widget.onBackToDashboard, 
+              onTap: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  widget.onBackToDashboard();
+                }
+              }, 
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
                       blurRadius: 10,
                     )
                   ],
                 ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.black87),
+                child: Icon(Icons.arrow_back_ios_new, size: 18, color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
               ),
             ),
             const SizedBox(width: 12),
-            TwinMartTheme.brandLogo(size: 18),
+            TwinMartTheme.brandLogo(size: 18, context: context),
             const SizedBox(width: 10),
-            TwinMartTheme.brandText(fontSize: 18),
+            TwinMartTheme.brandText(fontSize: 18, context: context),
           ],
         ),
         Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                );
-              },
-            ),
-            const SizedBox(width: 5),
             CircleAvatar(
               radius: 20,
               backgroundColor: twinGreen,
@@ -243,28 +245,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsRow() {
-    final user = FirebaseAuth.instance.currentUser;
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc(user?.uid)
+          .doc(userId)
           .collection('budget')
           .doc('settings')
           .snapshots(),
-      builder: (context, snapshot) {
+      builder: (context, budgetSnapshot) {
         double savings = 0.0;
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
+        if (budgetSnapshot.hasData && budgetSnapshot.data!.exists) {
+          final data = budgetSnapshot.data!.data() as Map<String, dynamic>?;
           savings = (data?['total_savings'] ?? 0.0).toDouble();
         }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _statCard("Total Orders", "0"),
-            _statCard("Total Spent", "₹0"),
-            _statCard("Saved", "₹${savings.toInt()}"),
-          ],
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('orders')
+              .where('userId', isEqualTo: userId)
+              .snapshots(),
+          builder: (context, ordersSnapshot) {
+            int totalOrders = 0;
+            double totalSpent = 0.0;
+
+            if (ordersSnapshot.hasData) {
+              totalOrders = ordersSnapshot.data!.docs.length;
+              for (var doc in ordersSnapshot.data!.docs) {
+                final data = doc.data() as Map<String, dynamic>;
+                totalSpent += (data['totalAmount'] ?? 0.0).toDouble();
+              }
+            }
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _statCard("Total Orders", totalOrders.toString()),
+                _statCard("Total Spent", "₹${totalSpent.toInt()}"),
+                _statCard("Saved", "₹${savings.toInt()}"),
+              ],
+            );
+          },
         );
       }
     );
@@ -275,8 +297,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: 105,
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+            blurRadius: 10,
+          )
+        ],
       ),
       child: Column(
         children: [
@@ -290,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey),
           ),
         ],
       ),
@@ -300,8 +328,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSettingsCard() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+            blurRadius: 10,
+          )
+        ],
       ),
       child: Column(
         children: [
@@ -354,17 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: "Send a reset link to your email",
             onTap: _handleChangePassword,
           ),
-          _settingsTile(
-            icon: Icons.notifications_active_outlined,
-            title: "Notifications",
-            subtitle: "Manage your alert preferences",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
+
           _settingsTile(
             icon: Icons.credit_card,
             title: "Payment Methods",
@@ -398,6 +422,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+              );
+            },
+          ),
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              final isDark = themeProvider.isDarkMode;
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(
+                    isDark ? Icons.dark_mode : Icons.light_mode,
+                    color: Colors.amber,
+                  ),
+                ),
+                title: const Text("Dark Mode", style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(themeProvider.themeMode == ThemeMode.system ? "Follows System" : (isDark ? "On" : "Off")),
+                trailing: Switch(
+                  value: isDark,
+                  onChanged: (value) {
+                    themeProvider.toggleTheme(value);
+                  },
+                  activeColor: twinGreen,
+                ),
               );
             },
           ),

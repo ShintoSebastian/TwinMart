@@ -27,6 +27,9 @@ dependencies:
   qr_flutter: ^4.1.0
   fl_chart: ^1.1.1
   shimmer: ^3.0.0
+  flutter_local_notifications: ^20.1.0
+  firebase_messaging: ^15.2.10
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -38,7 +38,7 @@ class _SignupScreenState extends State<SignupScreen> {
     const Color twinGreen = TwinMartTheme.brandGreen;
 
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -58,17 +58,29 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(35),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
-                    ],
-                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(32),
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.18),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 40,
+                              offset: const Offset(0, 16),
+                            ),
+                          ],
+                        ),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -78,9 +90,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         Center(
                           child: Column(
                             children: [
-                              TwinMartTheme.brandLogo(size: 32),
+                              TwinMartTheme.brandLogo(size: 32, context: context),
                               const SizedBox(height: 12),
-                              TwinMartTheme.brandText(fontSize: 26),
+                              TwinMartTheme.brandText(fontSize: 26, context: context),
                               const SizedBox(height: 15),
                               const Text('Create your account', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                               const Text('Start your smart shopping journey', style: TextStyle(color: Colors.grey, fontSize: 13)),
@@ -182,7 +194,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                   ),
-                ),
+                        ),
+                    ),
+                  ),
               ),
             ),
           ),
@@ -191,8 +205,8 @@ class _SignupScreenState extends State<SignupScreen> {
             left: 10,
             child: TextButton.icon(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back, color: Colors.grey, size: 20),
-              label: const Text("Back", style: TextStyle(color: Colors.grey, fontSize: 16)),
+              icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 20),
+              label: const Text("Back", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ),
           ),
         ],
@@ -228,7 +242,7 @@ class _SignupScreenState extends State<SignupScreen> {
               )
             : null,
         filled: true,
-        fillColor: const Color(0xFFF0F7FF),
+        fillColor: Colors.white.withOpacity(0.10),
         contentPadding: const EdgeInsets.symmetric(vertical: 15),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
         // Red borders for mandatory field failure
@@ -259,11 +273,118 @@ class _SignupScreenState extends State<SignupScreen> {
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
+        'notifications': {
+          'orderUpdates': true,
+          'promotionalOffers': true,
+          'priceAlerts': true,
+        },
       });
       
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration Successful! Please Login.')));
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+      
+      // Highly Attractive Standard Success Dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => TweenAnimationBuilder(
+          duration: const Duration(milliseconds: 600),
+          tween: Tween<double>(begin: 0, end: 1),
+          curve: Curves.easeOutBack,
+          builder: (context, double value, child) => Transform.scale(
+            scale: value,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white.withOpacity(0.25), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Success Icon with glow
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1DB98A).withOpacity(0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF1DB98A).withOpacity(0.3), width: 2),
+                          ),
+                          child: const Icon(Icons.check_rounded, color: Color(0xFF1DB98A), size: 45),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          "Welcome to TwinMart!",
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Your account has been created successfully. Redirecting you to sign in.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        // Premium Action Button
+                        Container(
+                          width: double.infinity,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1DB98A), Color(0xFF15A196)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1DB98A).withOpacity(0.4),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              )
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                            },
+                            child: const Text(
+                              "Get Started",
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'An unknown error occurred.')));
     } finally {

@@ -63,7 +63,7 @@ class _ShopScreenState extends State<ShopScreen> {
     }
 
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -92,7 +92,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 50),
+                          const SizedBox(height: 60),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: hPad),
                             child: _buildPageTitle(),
@@ -132,15 +132,15 @@ class _ShopScreenState extends State<ShopScreen> {
             if (!widget.isEmbedded) ...[
               Row(
                 children: [
-                  TwinMartTheme.brandLogo(size: 20),
+                  TwinMartTheme.brandLogo(size: 20, context: context),
                   const SizedBox(width: 8),
-                  TwinMartTheme.brandText(fontSize: 20),
+                  TwinMartTheme.brandText(fontSize: 20, context: context),
                 ],
               ),
               const SizedBox(height: 15),
             ],
             const Text("Browse Products",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: TwinMartTheme.darkText)),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const Text("Discover fresh groceries and essentials",
                 style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
           ],
@@ -156,11 +156,11 @@ class _ShopScreenState extends State<ShopScreen> {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: green.withOpacity(0.2)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+                  BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.04), blurRadius: 10, offset: const Offset(0, 4))
                 ],
               ),
               child: TextField(
@@ -212,7 +212,7 @@ class _ShopScreenState extends State<ShopScreen> {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: green.withOpacity(0.5)),
             ),
@@ -249,9 +249,34 @@ class _ShopScreenState extends State<ShopScreen> {
           {"name": "All Products", "emoji": "🛒"},
           ...snapshot.data!.docs.map((doc) {
             final d = doc.data() as Map<String, dynamic>;
+            String name = d['name'] ?? "Category";
+            String emoji = d['emoji'] ?? "🛍️";
+
+            // Mapping meaningful emojis to names if default emoji is used
+            if (emoji == "🛍️") {
+              String lowerName = name.toLowerCase();
+              if (lowerName.contains("digital")) {
+                emoji = "💻";
+              } else if (lowerName.contains("fruit")) {
+                emoji = "🍎";
+              } else if (lowerName.contains("grocery")) {
+                emoji = "🥦";
+              } else if (lowerName.contains("home appliance") || lowerName.contains("home")) {
+                emoji = "🏠";
+              } else if (lowerName.contains("fashion") || lowerName.contains("clothing")) {
+                emoji = "👕";
+              } else if (lowerName.contains("beauty")) {
+                emoji = "💄";
+              } else if (lowerName.contains("toy")) {
+                emoji = "🧸";
+              } else if (lowerName.contains("fresh")) {
+                emoji = "🥬";
+              }
+            }
+
             return {
-              "name": d['name'] ?? "Category",
-              "emoji": d['emoji'] ?? "🛍️"
+              "name": name,
+              "emoji": emoji
             };
           })
         ];
@@ -270,11 +295,11 @@ class _ShopScreenState extends State<ShopScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
-                    color: active ? green : Colors.white,
+                    color: active ? green : Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: active ? green.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+                        color: active ? green.withOpacity(0.3) : Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       )
@@ -287,7 +312,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       Text(
                         c['name'] as String,
                         style: TextStyle(
-                            color: active ? Colors.white : TwinMartTheme.darkText,
+                            color: active ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
                             fontWeight: FontWeight.bold,
                             fontSize: 14),
                       ),
@@ -337,7 +362,7 @@ class _ShopScreenState extends State<ShopScreen> {
             crossAxisCount: count,
             crossAxisSpacing: 20,
             mainAxisSpacing: 20,
-            childAspectRatio: 0.82,
+            childAspectRatio: 0.65,
           ),
           itemCount: products.length,
           itemBuilder: (_, i) =>
@@ -433,10 +458,10 @@ class _ProductCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(25),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+                BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05), blurRadius: 10)
               ],
             ),
             child: Column(
@@ -449,7 +474,7 @@ class _ProductCard extends StatelessWidget {
                       child: imageUrl != null
                           ? Image.network(
                               imageUrl,
-                              height: 75,
+                              height: 130,
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) =>
                                   const Text("🛍️", style: TextStyle(fontSize: 38)),
@@ -466,7 +491,7 @@ class _ProductCard extends StatelessWidget {
                                 );
                               },
                             )
-                          : const Text("🛍️", style: TextStyle(fontSize: 38)),
+                          : const Text("🛍️", style: TextStyle(fontSize: 52)),
                     ),
                   ),
                 ),
@@ -482,6 +507,8 @@ class _ProductCard extends StatelessWidget {
                      padding: const EdgeInsets.only(top: 2),
                      child: Text(
                        product['offerLine'],
+                       maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
                        style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold),
                      ),
                    ),
@@ -514,7 +541,12 @@ class _ProductCard extends StatelessWidget {
                     ),
                     const Padding(
                       padding: EdgeInsets.only(top: 2),
-                      child: Text("*including bank and coupon offer", style: TextStyle(color: Colors.grey, fontSize: 7)),
+                      child: Text(
+                        "*including bank and coupon offer",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey, fontSize: 7),
+                      ),
                     ),
                   ],
                 ),
@@ -574,10 +606,11 @@ class _ProductCard extends StatelessWidget {
             'name': product['name'],
             'price': price,
             'image': imageUrl ?? "🛍️",
+            'category': product['category'],
           });
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: green,
             borderRadius: BorderRadius.circular(20),
@@ -594,17 +627,16 @@ class _ProductCard extends StatelessWidget {
             style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 12),
+                fontSize: 11),
           ),
         ),
       );
     } else {
       return Container(
-        height: 36,
-        constraints: const BoxConstraints(minWidth: 90),
+        height: 32,
         decoration: BoxDecoration(
           color: green,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: green.withOpacity(0.3),
@@ -614,23 +646,23 @@ class _ProductCard extends StatelessWidget {
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.min,
           children: [
             GestureDetector(
               onTap: () => cart.removeSingleItem(productId),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(
                     qty == 1 ? Icons.delete_outline : Icons.remove,
                     color: Colors.white,
-                    size: 18),
+                    size: 16),
               ),
             ),
             Text(
               qty.toString(),
               style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12,
                   color: Colors.white),
             ),
             GestureDetector(
@@ -640,11 +672,12 @@ class _ProductCard extends StatelessWidget {
                   'name': product['name'],
                   'price': price,
                   'image': imageUrl ?? "🛍️",
+                  'category': product['category'],
                 });
               },
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.add, color: Colors.white, size: 18),
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.add, color: Colors.white, size: 16),
               ),
             ),
           ],

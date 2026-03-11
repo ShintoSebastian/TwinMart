@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 import 'dart:ui' as ui;
+import 'notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -14,8 +17,79 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool orderUpdates = true;
   bool promotionalOffers = false;
   bool priceAlerts = true;
+  bool isLoading = true;
 
   final Color twinGreen = const Color(0xFF1DB98A);
+  final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    if (userId == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        final prefs = data['notifications'] as Map<String, dynamic>?;
+        
+        setState(() {
+          if (prefs != null) {
+            orderUpdates = prefs['orderUpdates'] ?? true;
+            promotionalOffers = prefs['promotionalOffers'] ?? false;
+            priceAlerts = prefs['priceAlerts'] ?? true;
+          }
+          isLoading = false;
+        });
+      } else {
+        if (mounted) setState(() => isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _updateSetting(String key, bool value) async {
+    if (userId == null) return;
+    
+    // Optimistic update
+    setState(() {
+      if (key == 'orderUpdates') orderUpdates = value;
+      if (key == 'promotionalOffers') promotionalOffers = value;
+      if (key == 'priceAlerts') priceAlerts = value;
+    });
+
+    if (value) {
+      // Trigger OS permission request when enabling
+      NotificationService.requestPermission();
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({
+            'notifications': {
+              key: value,
+            }
+          }, SetOptions(merge: true));
+    } catch (e) {
+      // Revert on error
+      _loadSettings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to update settings. Please try again.")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +124,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                         const SizedBox(height: 15),
                         
+                        if (isLoading)
+                          const Center(child: Padding(
+                            padding: EdgeInsets.all(40.0),
+                            child: CircularProgressIndicator(color: TwinMartTheme.brandGreen),
+                          ))
+                        else
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -64,21 +144,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 title: "Order Updates",
                                 subtitle: "Receive alerts about your order status",
                                 value: orderUpdates,
-                                onChanged: (val) => setState(() => orderUpdates = val),
+                                onChanged: (val) => _updateSetting('orderUpdates', val),
                               ),
                               const Divider(height: 1),
                               _buildNotificationToggle(
                                 title: "Promotions",
                                 subtitle: "Special offers and discount codes",
                                 value: promotionalOffers,
-                                onChanged: (val) => setState(() => promotionalOffers = val),
+                                onChanged: (val) => _updateSetting('promotionalOffers', val),
                               ),
                               const Divider(height: 1),
                               _buildNotificationToggle(
                                 title: "Price Alerts",
                                 subtitle: "Get notified when favorites drop in price",
                                 value: priceAlerts,
-                                onChanged: (val) => setState(() => priceAlerts = val),
+                                onChanged: (val) => _updateSetting('priceAlerts', val),
                               ),
                             ],
                           ),

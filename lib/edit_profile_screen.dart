@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:twinmart_app/theme/twinmart_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
@@ -44,47 +45,158 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  // ─── Re-auth dialog ───────────────────────────────────────────────────────
+  Future<String?> _showReAuthDialog() async {
+    final passwordController = TextEditingController();
+    bool obscure = true;
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setS) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            title: const Text(
+              "Confirm your password",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Changing your email requires re-authentication for security. Please enter your current password.",
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    hintText: "Current password",
+                    prefixIcon: Icon(Icons.lock_outline, color: twinGreen),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscure ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.grey),
+                      onPressed: () => setS(() => obscure = !obscure),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF4F9F8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: twinGreen,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx, passwordController.text),
+                child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  // ─── Save profile ─────────────────────────────────────────────────────────
   Future<void> _saveProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    final newEmail = emailController.text.trim();
+    final emailChanged = newEmail != widget.currentEmail && newEmail.isNotEmpty;
+
     setState(() => isSaving = true);
 
     try {
-      // Update Email in Firebase Auth if it has changed
-      if (emailController.text.trim() != widget.currentEmail) {
-        await user.verifyBeforeUpdateEmail(emailController.text.trim());
+      // 1️⃣  Email changed → re-authenticate first, then update Auth email
+      if (emailChanged) {
+        final password = await _showReAuthDialog();
+        if (password == null || password.isEmpty) {
+          // User cancelled
+          setState(() => isSaving = false);
+          return;
+        }
+
+        // Re-authenticate
+        final cred = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(cred);
+
+        // Update email in Firebase Auth immediately (no verification email)
+        await user.updateEmail(newEmail);
       }
 
-      // Update Firestore document
+      // 2️⃣  Always update Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({
         'name': nameController.text.trim(),
         'phone': phoneController.text.trim(),
-        'email': emailController.text.trim(),
+        'email': newEmail,
       });
 
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully!")),
+        SnackBar(
+          content: Text(emailChanged
+              ? "Profile updated! Use $newEmail to log in next time."
+              : "Profile updated successfully!"),
+          backgroundColor: twinGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       setState(() => isSaving = false);
-      String message = "An error occurred";
-      if (e.code == 'requires-recent-login') {
-        message = "Please re-log in to change your email address.";
-      } else {
-        message = e.message ?? message;
+      String message;
+      switch (e.code) {
+        case 'wrong-password':
+          message = "Incorrect password. Please try again.";
+          break;
+        case 'requires-recent-login':
+          message = "Please re-log in and try again.";
+          break;
+        case 'email-already-in-use':
+          message = "This email is already registered to another account.";
+          break;
+        case 'invalid-email':
+          message = "The email address format is not valid.";
+          break;
+        default:
+          message = e.message ?? "An error occurred. Please try again.";
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     } catch (e) {
       setState(() => isSaving = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to update profile.")),
+        const SnackBar(content: Text("Failed to update profile. Try again.")),
       );
     }
   }
@@ -92,15 +204,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Edit Profile", 
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TwinMartTheme.brandLogo(size: 18, context: context),
+            const SizedBox(width: 8),
+            TwinMartTheme.brandText(fontSize: 18, context: context),
+            const SizedBox(width: 10),
+            Text("| Profile", style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 14)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -112,11 +232,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   )
@@ -128,6 +248,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 20),
                   _inputField("Email Address", emailController, Icons.email_outlined,
                       keyboard: TextInputType.emailAddress),
+                  const SizedBox(height: 8),
+                  // Email change hint
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: Colors.orange[400]),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "Changing email requires your current password.",
+                          style: TextStyle(fontSize: 11, color: Colors.orange[400]),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 20),
                   _inputField("Phone Number", phoneController, Icons.phone_android_outlined,
                       keyboard: TextInputType.phone),
@@ -152,7 +286,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         "Save Changes",
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18, 
+                            fontSize: 18,
                             fontWeight: FontWeight.bold),
                       ),
               ),
@@ -168,7 +302,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -177,7 +313,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: twinGreen),
             filled: true,
-            fillColor: bgLight.withOpacity(0.5),
+            fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : bgLight.withOpacity(0.5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
               borderSide: BorderSide.none,
@@ -187,5 +323,5 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ],
     );
-  }  
+  }
 }

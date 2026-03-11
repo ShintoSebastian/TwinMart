@@ -6,8 +6,40 @@ class TwinMartTheme {
   static const Color brandTeal = Color(0xFF15A196);
   static const Color brandBlue = Color(0xFF2196F3);
   static const Color bgLight = Color(0xFFF4F9F8);
+  static const Color bgDark = Color(0xFF0F172A); // Modern dark blue-grey
   static const Color darkText = Color(0xFF1A1A1A);
+  static const Color lightText = Color(0xFFF8FAFC);
   
+  // Light Theme Data
+  static final ThemeData lightTheme = ThemeData(
+    brightness: Brightness.light,
+    primaryColor: brandGreen,
+    scaffoldBackgroundColor: bgLight,
+    fontFamily: 'Roboto',
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: brandGreen,
+      brightness: Brightness.light,
+      background: bgLight,
+    ),
+    useMaterial3: true,
+  );
+
+  // Dark Theme Data
+  static final ThemeData darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    primaryColor: brandGreen,
+    scaffoldBackgroundColor: bgDark,
+    fontFamily: 'Roboto',
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: brandGreen,
+      brightness: Brightness.dark,
+      background: bgDark,
+      surface: const Color(0xFF1E293B), // Darker surface color
+    ),
+    useMaterial3: true,
+    cardColor: const Color(0xFF1E293B),
+  );
+
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [brandGreen, brandTeal],
@@ -65,7 +97,8 @@ class TwinMartTheme {
     );
   }
   // Branded Logo Widget
-  static Widget brandLogo({double size = 26, Color? color}) {
+  static Widget brandLogo({double size = 26, Color? color, BuildContext? context}) {
+    final bool isDark = context != null && Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(size * 0.25),
       decoration: BoxDecoration(
@@ -81,20 +114,24 @@ class TwinMartTheme {
       ),
       child: Icon(
         Icons.shopping_cart_rounded,
-        color: Colors.white,
+        color: isDark ? Colors.white : Colors.white, // Keep icon white
         size: size,
       ),
     );
   }
 
   // Branded Text Widget (Twin in Black, Mart in Green)
-  static Widget brandText({double fontSize = 28, FontWeight fontWeight = FontWeight.bold}) {
+  static Widget brandText({double fontSize = 28, FontWeight fontWeight = FontWeight.bold, BuildContext? context}) {
+    final Color textColor = (context != null && Theme.of(context).brightness == Brightness.dark) 
+        ? Colors.white 
+        : darkText;
+        
     return Text.rich(
       TextSpan(
         children: [
           TextSpan(
             text: "Twin",
-            style: TextStyle(color: darkText, fontSize: fontSize, fontWeight: fontWeight),
+            style: TextStyle(color: textColor, fontSize: fontSize, fontWeight: fontWeight),
           ),
           TextSpan(
             text: "Mart",

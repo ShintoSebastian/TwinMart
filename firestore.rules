@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ══════════════════════════════════════════
+    //  HELPER FUNCTIONS
+    // ══════════════════════════════════════════
+
+    // Is the request from a signed-in user?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Is the signed-in user the admin?
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == 'admin@gmail.com';
+    }
+
+    // Is the signed-in user the owner of a given userId?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ══════════════════════════════════════════
+    //  PRODUCTS  (public read, admin write)
+    // ══════════════════════════════════════════
+    match /products/{productId} {
+      allow read: if true;           // Anyone can browse the shop
+      allow write: if isAdmin();     // Only admin can add / edit / delete products
+    }
+
+    // ══════════════════════════════════════════
+    //  CATEGORIES  (public read, admin write)
+    // ══════════════════════════════════════════
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ══════════════════════════════════════════
+    //  PROMOTIONS / BANNERS  (public read, admin write)
+    // ══════════════════════════════════════════
+    match /promotions/{promotionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ══════════════════════════════════════════
+    //  ORDERS
+    // ══════════════════════════════════════════
+    match /orders/{orderId} {
+      // Users can place orders; admin can read and manage all orders
+      allow create: if isAuthenticated();
+      allow read:   if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ══════════════════════════════════════════
+    //  SUPPORT MESSAGES / FEEDBACK
+    // ══════════════════════════════════════════
+    match /support_messages/{messageId} {
+      allow create: if true;
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ══════════════════════════════════════════
+    //  USERS  (private — each user owns their doc)
+
+    // ══════════════════════════════════════════
+    match /users/{userId} {
+      // Users can create and manage their own profile; admin can read/update all users
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow read:   if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      // ── Wishlist ──────────────────────────
+      match /wishlist/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Budget settings ───────────────────
+      match /budget/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Scan transactions ─────────────────
+      match /transactions/{txId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Recently scanned items ────────────
+      match /recently_scanned/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Saved addresses ───────────────────
+      match /userAddresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Notification and other settings ────
+      match /settings/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+  }
+}

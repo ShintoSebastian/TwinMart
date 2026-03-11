@@ -25,7 +25,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
   final MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     detectionTimeoutMs: 250, // Ultra-fast detection cycles
-    autoStart: true,
+    autoStart: false, // Set to false to manage manually
     formats: [BarcodeFormat.all],
   );
   
@@ -42,6 +42,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
   bool _isProcessingScan = false; 
   DateTime? _lastScanTime;
   String _lastScannedDisplay = "Ready to scan";
+  StreamSubscription? _transactionSubscription;
 
   @override
   void initState() {
@@ -55,37 +56,46 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
     
     _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
 
-    // Initial spending load
-    _updatePreviousSpending();
+    // Initial spending load & live sync and ensure it matches the budget page logic
+    _listenToTransactions();
+
+    // Start scanner manually after frame delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        try {
+          cameraController.start();
+        } catch (e) {
+          debugPrint("Scanner start error: $e");
+        }
+      }
+    });
   }
 
-  Future<void> _updatePreviousSpending() async {
+  void _listenToTransactions() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    try {
-      final transSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .get();
-
-      double tempOfflineSpent = 0;
-      for (var doc in transSnapshot.docs) {
+    _transactionSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('transactions')
+        .snapshots()
+        .listen((snapshot) {
+      double total = 0.0;
+      for (var doc in snapshot.docs) {
         final data = doc.data();
         if ((data['type'] ?? 'offline') == 'offline') {
-          tempOfflineSpent += (data['price'] ?? 0.0).toDouble();
+          final double price = (data['price'] ?? 0.0).toDouble();
+          final int qty = (data['quantity'] ?? 1) as int;
+          total += price * qty;
         }
       }
-
       if (mounted) {
         setState(() {
-          previousSpending = tempOfflineSpent;
+          previousSpending = total;
         });
       }
-    } catch (e) {
-      debugPrint("Error updating spending: $e");
-    }
+    });
   }
 
   void _checkBudgetAlert(double itemPrice, String itemName) {
@@ -143,7 +153,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
               const SizedBox(height: 20),
               Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 15),
-              Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 16)),
+              Text(msg, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey, fontSize: 16)),
               const SizedBox(height: 25),
               SizedBox(
                 width: double.infinity,
@@ -283,7 +293,10 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: twinGreen),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: twinGreen,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               if (_codeController.text.isNotEmpty) {
                 Navigator.pop(context);
@@ -320,10 +333,10 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
       }
 
       setState(() {
-        previousSpending += currentSessionTotal;
         currentSessionTotal = 0.0;
         currentSessionItems.clear();
       });
+      // previousSpending will update automatically via Firestore stream
     }
   }
 
@@ -337,7 +350,10 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             gradient: LinearGradient(
-              colors: [Colors.white, twinGreen.withOpacity(0.05)],
+              colors: [
+                Theme.of(context).cardColor, 
+                twinGreen.withOpacity(0.05)
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -351,12 +367,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                 child: Icon(Icons.savings_rounded, color: twinGreen, size: 50),
               ),
               const SizedBox(height: 25),
-              const Text("Smart Shopper! 🎉", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+              Text("Smart Shopper! 🎉", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleLarge?.color)),
               const SizedBox(height: 15),
               Text(
                 "You stayed under your limit and saved ₹${savedAmount.toInt()} from your budget!",
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.5),
+                style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey, height: 1.5),
               ),
               const SizedBox(height: 30),
               SizedBox(
@@ -407,7 +423,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
     if (state == AppLifecycleState.inactive) {
       cameraController.stop();
     } else if (state == AppLifecycleState.resumed) {
-      cameraController.start();
+      try {
+        cameraController.start();
+      } catch (e) {
+        debugPrint("Scanner resume error: $e");
+      }
     }
     super.didChangeAppLifecycleState(state);
   }
@@ -415,6 +435,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _transactionSubscription?.cancel();
     cameraController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -423,7 +444,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -504,7 +525,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                       children: [
                          const Text("Cart Items", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         if (currentSessionItems.isNotEmpty)
-                          Text("${currentSessionItems.length} Products", style: const TextStyle(color: Colors.grey)),
+                          Text("${currentSessionItems.length} Products", style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey)),
                       ],
                     ),
                   ),
@@ -541,9 +562,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
           children: [
             Row(
               children: [
-                TwinMartTheme.brandLogo(size: 22),
+                TwinMartTheme.brandLogo(size: 22, context: context),
                 const SizedBox(width: 10),
-                TwinMartTheme.brandText(fontSize: 22),
+                TwinMartTheme.brandText(fontSize: 22, context: context),
               ],
             ),
             GestureDetector(
@@ -551,20 +572,20 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white, 
+                  color: Theme.of(context).cardColor, 
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
+                    BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05), blurRadius: 10)
                   ]
                 ),
-                child: const Icon(Icons.close_rounded, size: 20, color: TwinMartTheme.darkText),
+                child: Icon(Icons.close_rounded, size: 20, color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
               ),
             ),
           ],
         ),
         const SizedBox(height: 6),
-        const Text('Scan & Shop', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: TwinMartTheme.darkText)),
-        const Text('Scan barcodes to bypass billing counter', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+        const Text('Scan & Shop', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        Text('Scan barcodes to bypass billing counter', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -584,6 +605,14 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
             key: _scannerKey,
             errorBuilder: (context, error, child) {
               debugPrint("🔥 Camera Error: ${error.errorCode}");
+
+              // Skip showing error UI for benign initialization issues
+              if (error.errorCode == MobileScannerErrorCode.controllerAlreadyInitialized) {
+                return const Center(
+                  child: CircularProgressIndicator(color: TwinMartTheme.brandGreen),
+                );
+              }
+
               return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -685,9 +714,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shopping_cart_outlined, size: 50, color: Colors.grey[300]),
+            Icon(Icons.shopping_cart_outlined, size: 50, color: Theme.of(context).brightness == Brightness.dark ? Colors.white24 : Colors.grey[300]),
             const SizedBox(height: 10),
-            Text("Scan items to add them here", style: TextStyle(color: Colors.grey[400])),
+            Text("Scan items to add them here", style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey[400])),
           ],
         ),
       );
@@ -713,7 +742,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
             margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             elevation: 2,
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               child: Row(
@@ -721,7 +750,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                   Container(
                     width: 50, height: 50,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF4F9F8),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : const Color(0xFFF4F9F8),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -740,7 +769,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                       children: [
                         Text(item['name'] ?? "Unknown", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 4),
-                        Text("₹$price", style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                        Text("₹$price", style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -757,13 +786,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
   Widget _buildQtyController(int index, int qty) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F9F8),
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : const Color(0xFFF4F9F8),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.remove, size: 18, color: Colors.black87),
+            icon: Icon(Icons.remove, size: 18, color: Theme.of(context).textTheme.bodyLarge?.color),
             onPressed: () => _updateItemQuantity(index, -1),
             constraints: const BoxConstraints(minWidth: 35, minHeight: 35),
             padding: EdgeInsets.zero,
@@ -773,7 +802,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           IconButton(
-            icon: const Icon(Icons.add, size: 18, color: Colors.black87),
+            icon: Icon(Icons.add, size: 18, color: Theme.of(context).textTheme.bodyLarge?.color),
             onPressed: () => _updateItemQuantity(index, 1),
             constraints: const BoxConstraints(minWidth: 35, minHeight: 1),
             padding: EdgeInsets.zero,
@@ -791,7 +820,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), 
       decoration: BoxDecoration(
-        color: isError ? Colors.red[50] : (isSuccess ? TwinMartTheme.brandGreen.withOpacity(0.08) : Colors.white), 
+        color: isError 
+          ? (Theme.of(context).brightness == Brightness.dark ? Colors.red.withOpacity(0.15) : Colors.red[50])
+          : (isSuccess 
+              ? TwinMartTheme.brandGreen.withOpacity(0.08) 
+              : Theme.of(context).cardColor), 
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
@@ -804,7 +837,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: isError ? Colors.red.withOpacity(0.1) : (isSuccess ? TwinMartTheme.brandGreen.withOpacity(0.1) : Colors.grey[100]),
+              color: isError ? Colors.red.withOpacity(0.1) : (isSuccess ? TwinMartTheme.brandGreen.withOpacity(0.1) : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[100])),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -820,7 +853,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
               style: TextStyle(
                 fontWeight: FontWeight.bold, 
                 fontSize: 14, 
-                color: isError ? Colors.red[700] : (isSuccess ? TwinMartTheme.brandGreen : TwinMartTheme.darkText)
+                color: isError ? (Theme.of(context).brightness == Brightness.dark ? Colors.red[300] : Colors.red[700]) : (isSuccess ? TwinMartTheme.brandGreen : Theme.of(context).textTheme.bodyLarge?.color)
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -884,7 +917,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12), 
           decoration: BoxDecoration(
-            color: isOver ? Colors.red[50] : (isWarning ? Colors.orange[50] : Colors.white), 
+            color: isOver 
+              ? (Theme.of(context).brightness == Brightness.dark ? Colors.red.withOpacity(0.15) : Colors.red[50]) 
+              : (isWarning 
+                  ? (Theme.of(context).brightness == Brightness.dark ? Colors.orange.withOpacity(0.15) : Colors.orange[50]) 
+                  : Theme.of(context).cardColor), 
             borderRadius: BorderRadius.circular(25),
             boxShadow: [
               BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5))
@@ -900,7 +937,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                     child: CircularProgressIndicator(
                       value: (progressPercent / 100).clamp(0.0, 1.0),
                       strokeWidth: 4,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[200],
                       valueColor: AlwaysStoppedAnimation<Color>(
                         isOver ? Colors.red : (isWarning ? Colors.orange : TwinMartTheme.brandGreen)
                       ),
@@ -914,8 +951,8 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total: ₹${totalSpent.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: TwinMartTheme.darkText)),
-                    Text('Budget Limit: ₹${limit.toInt()}', style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500)),
+                    Text('Total: ₹${totalSpent.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    Text('Budget Limit: ₹${limit.toInt()}', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey, fontSize: 11, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -948,7 +985,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
         style: ElevatedButton.styleFrom(
           backgroundColor: TwinMartTheme.brandGreen,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey[300],
+          disabledBackgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[300],
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 0,
         ),

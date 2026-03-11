@@ -1,12 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'signup.dart';
 import 'main_wrapper.dart';
 import 'main.dart';
 import 'admin_dashboard.dart';
 import 'intro_page.dart';
 import 'animated_route.dart';
-import 'forgot_password_screen.dart'; // ✅ Ensure this file is created
+import 'forgot_password_screen.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -44,45 +45,66 @@ class _LoginScreenState extends State<LoginScreen> {
     const Color fieldBg = Color(0xFFF0F7FF);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F9F8),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: TextButton.icon(
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-                (route) => false,
-              );
-            }
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.grey, size: 20),
-          label: const Text("Back",
-              style: TextStyle(color: Colors.grey, fontSize: 16)),
-        ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 420),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 35),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(35),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 25,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          // Background blobs
+          TwinMartTheme.bgBlob(top: -80, left: -80, size: 320, color: TwinMartTheme.brandGreen.withOpacity(0.25)),
+          TwinMartTheme.bgBlob(bottom: -60, right: -60, size: 280, color: TwinMartTheme.brandBlue.withOpacity(0.20)),
+          // Blur the blobs into a soft glow
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+              child: const SizedBox.expand(),
             ),
+          ),
+          // Back button
+          Positioned(
+            top: 40,
+            left: 10,
+            child: TextButton.icon(
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 20),
+              label: const Text("Back", style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ),
+          ),
+          // Main content
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 80),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 35),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.18),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 40,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -152,10 +174,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-              ],
+                ],
+            ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -164,9 +190,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        TwinMartTheme.brandLogo(size: 32),
+        TwinMartTheme.brandLogo(size: 32, context: context),
         const SizedBox(width: 12),
-        TwinMartTheme.brandText(fontSize: 32),
+        TwinMartTheme.brandText(fontSize: 32, context: context),
       ],
     );
   }
@@ -226,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
               )
             : null,
         filled: true,
-        fillColor: bg,
+        fillColor: Colors.white.withOpacity(0.10),
         contentPadding: const EdgeInsets.symmetric(vertical: 18),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
@@ -246,24 +272,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    if (email == "admin@gmail.com" && password == "admin") {
-      setState(() => _isLoading = false);
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminDashboard()),
-        (route) => false,
-      );
-      return;
-    }
-
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (!mounted) return;
+
+      // Route admin to admin dashboard based on their Firebase Auth email
+      if (userCredential.user?.email == 'admin@gmail.com') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboard()),
+          (route) => false,
+        );
+        return;
+      }
 
       Navigator.pushAndRemoveUntil(
         context,

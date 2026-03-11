@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:twinmart_app/theme/twinmart_theme.dart';
 
 class SavedAddressesScreen extends StatelessWidget {
   const SavedAddressesScreen({super.key});
@@ -128,13 +129,21 @@ class SavedAddressesScreen extends StatelessWidget {
     final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F9F8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Saved Addresses",
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TwinMartTheme.brandLogo(size: 18, context: context),
+            const SizedBox(width: 8),
+            TwinMartTheme.brandText(fontSize: 18, context: context),
+            const SizedBox(width: 10),
+            Text("| Saved Addresses", style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 14)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
       ),
       body: userId.isEmpty
           ? const Center(child: Text("Please login to view addresses"))
@@ -194,10 +203,10 @@ class SavedAddressesScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: isDefault ? Border.all(color: green, width: 2) : null,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10)],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

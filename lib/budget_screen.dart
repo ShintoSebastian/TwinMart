@@ -14,13 +14,14 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen> {
   // --- STATE DATA ---
-  double totalBudget = 5000.0;
-  double originalMonthlyBudget = 5000.0; 
-  double spent = 0.0; 
-  int editsRemaining = 2; 
+  double firstBudgetOfMonth = 0.0;
+  int editsThisMonth = 0;
   bool isLoading = true; 
   
   Map<String, double> categorySpentMap = {};
+  StreamSubscription? _catSubscription;
+  StreamSubscription? _transactionSubscription;
+  StreamSubscription? _settingsSubscription;
 
   final TextEditingController _budgetController = TextEditingController();
 
@@ -36,15 +37,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     'Entertainment': 11.0,
   };
 
-  final Map<String, IconData> catIcons = {
-    'Groceries': Icons.shopping_cart_outlined,
-    'Food & Dining': Icons.restaurant, 
-    'Digitals': Icons.devices_other, 
-    'Utilities': Icons.bolt,
-    'Entertainment': Icons.coffee_rounded,
-  };
-
-  final Map<String, Color> catColors = {
+  Map<String, Color> catColors = {
     'Groceries': const Color(0xFF1DB98A),
     'Food & Dining': Colors.orange,
     'Digitals': Colors.teal, 
@@ -52,10 +45,126 @@ class _BudgetScreenState extends State<BudgetScreen> {
     'Entertainment': const Color(0xFF1DB98A),
   };
 
+  IconData _getIconForCategory(String name) {
+    String lower = name.toLowerCase();
+    if (lower.contains("grocer")) return Icons.shopping_cart_outlined;
+    if (lower.contains("food") || lower.contains("restaur")) return Icons.restaurant;
+    if (lower.contains("digit") || lower.contains("tech") || lower.contains("device")) return Icons.devices_other;
+    if (lower.contains("utilit") || lower.contains("bill")) return Icons.bolt;
+    if (lower.contains("entertain") || lower.contains("movie") || lower.contains("game")) return Icons.movie_outlined;
+    if (lower.contains("fruit") || lower.contains("veg")) return Icons.bakery_dining_outlined;
+    if (lower.contains("fashion") || lower.contains("cloth")) return Icons.checkroom_outlined;
+    if (lower.contains("home") || lower.contains("applian")) return Icons.home_max_outlined;
+    if (lower.contains("beauty") || lower.contains("health")) return Icons.health_and_safety_outlined;
+    if (lower.contains("toy")) return Icons.smart_toy_outlined;
+    return Icons.category_outlined;
+  }
+
+  Color _getColorForCategory(String name) {
+    String lower = name.toLowerCase();
+    if (lower.contains("grocer")) return const Color(0xFF1DB98A);
+    if (lower.contains("food")) return Colors.orange;
+    if (lower.contains("digit")) return Colors.teal;
+    if (lower.contains("utilit")) return Colors.orangeAccent;
+    if (lower.contains("entertain")) return Colors.purple;
+    if (lower.contains("fruit")) return Colors.redAccent;
+    if (lower.contains("fashion")) return Colors.blueAccent;
+    if (lower.contains("home")) return Colors.indigo;
+    if (lower.contains("beauty")) return Colors.pinkAccent;
+    if (lower.contains("toy")) return Colors.amber;
+    return Colors.blueGrey;
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadBudgetData(); 
+    _loadBudgetData();
+    _setupCategoryListener();
+    _listenToTransactions();
+    _setupSettingsListener();
+  }
+
+  void _setupSettingsListener() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _settingsSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('budget')
+        .doc('settings')
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && mounted) {
+        final data = doc.data();
+        if (data != null) {
+          setState(() {
+            totalBudget = (data['budget_limit'] ?? 5000.0).toDouble();
+            // Sync splits if they changed remotely
+            var savedSplits = data['split_percentages'] as Map<String, dynamic>? ?? {};
+            if (savedSplits.isNotEmpty) {
+              Map<String, double> tempSplits = {};
+              savedSplits.forEach((key, value) {
+                tempSplits[key] = (value as num).toDouble();
+              });
+              splitPercentages = tempSplits;
+            }
+          });
+        }
+      }
+    });
+
+  void _setupCategoryListener() {
+    _catSubscription = FirebaseFirestore.instance.collection('categories').snapshots().listen((_) {
+      _loadBudgetData();
+    });
+  }
+
+  /// Real-time listener on transactions — keeps `spent` and `categorySpentMap`
+  /// in sync with the scan page, which also reads from `transactions`.
+  void _listenToTransactions() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _transactionSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('transactions')
+        .snapshots()
+        .listen((snapshot) {
+      double total = 0.0;
+      Map<String, double> catMap = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        // Only count offline scan transactions
+        if ((data['type'] ?? 'offline') == 'offline') {
+          final double price = (data['price'] ?? 0.0).toDouble();
+          final int qty = (data['quantity'] ?? 1) as int;
+          final double lineTotal = price * qty;
+          total += lineTotal;
+
+            final String cat = (data['category'] ?? 'Miscellaneous').toString();
+            catMap[cat] = (catMap[cat] ?? 0.0) + lineTotal;
+          }
+        }
+
+      if (mounted) {
+        setState(() {
+          spent = total;
+          categorySpentMap = catMap;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _catSubscription?.cancel();
+    _transactionSubscription?.cancel();
+    _settingsSubscription?.cancel();
+    _budgetController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBudgetData() async {
@@ -72,41 +181,78 @@ class _BudgetScreenState extends State<BudgetScreen> {
         .doc('settings');
 
     try {
+      // 1. Fetch system categories
+      final systemCatsSnapshot = await FirebaseFirestore.instance.collection('categories').get();
+      final List<String> systemCategories = systemCatsSnapshot.docs.map((doc) => doc['name'] as String).toList();
+
+      // 2. Fetch user budget settings
       final doc = await docRef.get().timeout(const Duration(seconds: 10));
 
       if (!doc.exists) {
+        // Initialize with system categories
+        Map<String, double> initialSplits = {};
+        Map<String, double> initialSpending = {};
+        
+        if (systemCategories.isNotEmpty) {
+          double defaultPercent = 100.0 / systemCategories.length;
+          for (var cat in systemCategories) {
+            initialSplits[cat] = defaultPercent;
+            initialSpending[cat] = 0.0;
+          }
+        }
+
         await docRef.set({
           'budget_limit': 5000.0,
-          'category_spending': {
-            'Digitals': 0.0,
-            'Food & Dining': 0.0,
-            'Groceries': 0.0,
-            'Utilities': 0.0,
-            'Entertainment': 0.0,
-          },
-          'split_percentages': splitPercentages,
+          'category_spending': initialSpending,
+          'split_percentages': initialSplits,
         }).timeout(const Duration(seconds: 10));
       }
 
       final freshDoc = await docRef.get().timeout(const Duration(seconds: 10));
-      final data = freshDoc.data(); // This is Map<String, dynamic>?
+      final data = freshDoc.data();
 
       if (mounted && data != null) {
+        final now = DateTime.now();
+        final int currentMonth = now.month;
+        final int lastMonth = data['last_edit_month'] ?? 0;
+
         setState(() {
           totalBudget = (data['budget_limit'] ?? 5000.0).toDouble();
-          originalMonthlyBudget = totalBudget;
           
-          // Fixed potential null access with safe casting
-          var cats = data['category_spending'] as Map<String, dynamic>? ?? {};
-          categorySpentMap = cats.map((key, value) => MapEntry(key, (value ?? 0.0).toDouble()));
-          spent = categorySpentMap.values.fold(0.0, (sum, v) => sum + v);
+          if (currentMonth != lastMonth) {
+            editsThisMonth = 0;
+            firstBudgetOfMonth = 0;
+          } else {
+            editsThisMonth = data['edits_this_month'] ?? 0;
+            firstBudgetOfMonth = (data['first_budget_of_month'] ?? 0.0).toDouble();
+          }
 
-          // Fixed potential null access with safe casting
-          var savedSplits = data['split_percentages'] as Map<String, dynamic>?;
-          if (savedSplits != null) {
-            splitPercentages = savedSplits.map((key, value) => MapEntry(key, (value ?? 0.0).toDouble()));
+          // `spent` and `categorySpentMap` are now kept live by _listenToTransactions.
+          // We only ensure every system category has an entry (for the split UI).
+          for (var cat in systemCategories) {
+            if (!categorySpentMap.containsKey(cat)) {
+              categorySpentMap[cat] = 0.0;
+            }
+          }
+
+          var savedSplits = data['split_percentages'] as Map<String, dynamic>? ?? {};
+          Map<String, double> mergedSplits = {};
+          
+          // Sync with system categories
+          for (var cat in systemCategories) {
+            mergedSplits[cat] = (savedSplits[cat] ?? 0.0).toDouble();
           }
           
+          // If total is 0 (newly initialized or categories changed), redistribute
+          double currentTotal = mergedSplits.values.fold(0.0, (sum, v) => sum + v);
+          if (currentTotal < 1.0 && systemCategories.isNotEmpty) {
+            double defaultPercent = 100.0 / systemCategories.length;
+            for (var cat in systemCategories) {
+              mergedSplits[cat] = defaultPercent;
+            }
+          }
+
+          splitPercentages = mergedSplits;
           isLoading = false; 
         });
       } else if (mounted) {
@@ -124,10 +270,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    final now = DateTime.now();
+    Map<String, dynamic> updates = {
+      'budget_limit': newLimit,
+      'last_edit_month': now.month,
+      'edits_this_month': editsThisMonth + 1,
+    };
+
+    if (editsThisMonth == 0) {
+      updates['first_budget_of_month'] = newLimit;
+    }
+
     await FirebaseFirestore.instance
         .collection('users').doc(user.uid)
         .collection('budget').doc('settings')
-        .update({'budget_limit': newLimit}).timeout(const Duration(seconds: 10));
+        .update(updates).timeout(const Duration(seconds: 10));
     
     _loadBudgetData(); 
   }
@@ -147,31 +304,54 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   void _showEditBudgetDialog() {
-    if (editsRemaining <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No budget edits remaining for this month.")),
+    if (editsThisMonth >= 2) {
+      _showPremiumAlert(
+        title: "Limit Reached! 🛑",
+        msg: "You have already edited your budget twice this month. Please wait until next month to make further changes.",
+        isCritical: true,
       );
       return;
     }
 
-    _budgetController.text = totalBudget.toInt().toString();
+    if (editsThisMonth == 1) {
+      double allowedBudget = firstBudgetOfMonth * 0.5;
+      _budgetController.text = allowedBudget.toInt().toString();
+    } else {
+      _budgetController.text = totalBudget.toInt().toString();
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Edit Budget ($editsRemaining left)'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        title: Text(editsThisMonth == 0 ? 'Set First Budget' : 'Set Second Budget (50%)'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (editsThisMonth == 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 15),
+                child: Text(
+                  "Your second budget is restricted to 50% of your first budget (₹${firstBudgetOfMonth.toInt()}).",
+                  style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
             TextField(
               controller: _budgetController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(prefixText: '₹ ', border: OutlineInputBorder()),
+              enabled: editsThisMonth == 0, // Force the value for second edit as per example
+              decoration: InputDecoration(
+                prefixText: '₹ ', 
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                hintText: editsThisMonth == 1 ? "Auto-calculated: ₹${(firstBudgetOfMonth * 0.5).toInt()}" : "Enter amount",
+              ),
             ),
             const SizedBox(height: 12),
             Text(
-              "Note: Max increase allowed is ₹${maxIncreaseAllowed.toInt()} (50%)",
+              editsThisMonth == 0 
+                ? "This will be your primary budget for the month." 
+                : "Note: Second budget must be ₹${(firstBudgetOfMonth * 0.5).toInt()}.",
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -183,22 +363,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
               double? newValue = double.tryParse(_budgetController.text);
               if (newValue == null) return;
 
-              if (newValue > (originalMonthlyBudget + maxIncreaseAllowed)) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Cannot exceed ₹${(originalMonthlyBudget + maxIncreaseAllowed).toInt()} (+50%)")),
-                );
-                return;
+              if (editsThisMonth == 1) {
+                // Ensure it is exactly 50% or within the 50% limit as per user's "should be the 50%" logic
+                newValue = firstBudgetOfMonth * 0.5;
               }
 
               _updateBudgetInFirestore(newValue);
-              setState(() {
-                totalBudget = newValue;
-                editsRemaining--; 
-              });
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1DB98A)),
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1DB98A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Update Budget', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -241,6 +418,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             children: [
               _buildHeader(),
               _buildGradientCard(), 
+              if (spent > totalBudget) _buildExceededWarning(),
               _buildStatGrid(),
               _buildCategorySpending(),
               _buildRecentTransactions(),
@@ -373,13 +551,46 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Max increase allowed: ₹${maxIncreaseAllowed.toInt()} (50%) • $editsRemaining edits left',
+                    editsThisMonth >= 2 
+                      ? 'Monthly limit reached (2/2 edits). Wait for next month.'
+                      : (editsThisMonth == 1 
+                          ? '1 Edit remaining. The next budget will be restricted to ₹${(firstBudgetOfMonth * 0.5).toInt()}.' 
+                          : 'First budget of the month. You will have one more 50% edit later.'),
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExceededWarning() {
+    double exceededAmt = spent - totalBudget;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 15, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2196F3).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF2196F3).withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Colors.red, size: 24),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Offline Budget Exceeded", style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold, fontSize: 16)),
+                Text("Spent ₹${exceededAmt.toInt()} over your set limit.", style: TextStyle(color: Colors.red.withOpacity(0.8), fontSize: 12)),
+              ],
+            ),
+          ),
+          Text("₹${exceededAmt.toInt()}", style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w900, fontSize: 18)),
         ],
       ),
     );
@@ -434,8 +645,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
             return _spendingRow(
               catName, 
               prog, 
-              catColors[catName] ?? Colors.teal, 
-              catIcons[catName] ?? Icons.help_outline, 
+              _getColorForCategory(catName), 
+              _getIconForCategory(catName), 
               "₹${currentSpent.toInt()} / ₹${limit.toInt()}"
             );
           }),
@@ -572,13 +783,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   Widget _buildSplitRow(String name, double percent, ValueChanged<double> onChanged) {
     double amount = (totalBudget * percent) / 100;
+    Color catColor = _getColorForCategory(name);
+    IconData catIcon = _getIconForCategory(name);
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         children: [
           Row(
             children: [
-              CircleAvatar(backgroundColor: (catColors[name] ?? Colors.teal).withOpacity(0.1), child: Icon(catIcons[name] ?? Icons.help, color: catColors[name] ?? Colors.teal, size: 20)),
+              CircleAvatar(backgroundColor: catColor.withOpacity(0.1), child: Icon(catIcon, color: catColor, size: 20)),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -627,7 +841,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 child: Container(
                   height: 10,
                   margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(color: catColors[cat] ?? Colors.teal, borderRadius: BorderRadius.circular(5)),
+                  decoration: BoxDecoration(color: _getColorForCategory(cat), borderRadius: BorderRadius.circular(5)),
                 ),
               );
             }).toList(),
@@ -636,4 +850,44 @@ class _BudgetScreenState extends State<BudgetScreen> {
       ),
     );
   }
-}
+
+  void _showPremiumAlert({required String title, required String msg, bool isCritical = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        child: Container(
+          padding: const EdgeInsets.all(25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: isCritical ? Colors.red[50] : Colors.orange[50],
+                child: Icon(isCritical ? Icons.report_problem : Icons.warning_amber_rounded, 
+                    color: isCritical ? Colors.red : Colors.orange, size: 30),
+              ),
+              const SizedBox(height: 20),
+              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              Text(msg, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey, fontSize: 16)),
+              const SizedBox(height: 25),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCritical ? Colors.red : const Color(0xFF1DB98A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  child: const Text("Got it", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

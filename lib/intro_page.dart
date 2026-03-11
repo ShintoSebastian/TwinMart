@@ -85,7 +85,7 @@ class _IntroPageState extends State<IntroPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -119,9 +119,9 @@ class _IntroPageState extends State<IntroPage>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TwinMartTheme.brandLogo(size: 32),
+                        TwinMartTheme.brandLogo(size: 32, context: context),
                         const SizedBox(width: 12),
-                        TwinMartTheme.brandText(fontSize: 32),
+                        TwinMartTheme.brandText(fontSize: 32, context: context),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -285,8 +285,8 @@ class _FeatureTileState extends State<FeatureTile> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: _isHovered
-                  ? Colors.white.withOpacity(0.85)
-                  : Colors.white,
+                  ? Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.85)
+                  : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: _isHovered

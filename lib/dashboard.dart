@@ -7,6 +7,9 @@ import 'shop_screen.dart';
 import 'profile_screen.dart';
 import 'product_details_screen.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'package:twinmart_app/theme/theme_provider.dart';
+import 'package:provider/provider.dart';
+import 'cart_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback onScanRequest;
@@ -78,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -105,7 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 20),
                           _buildWelcomeHeader(),
                           const SizedBox(height: 25),
                           _buildPromotionalCarousel(), // Functional Banner
@@ -145,15 +148,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       title: Row(
         children: [
-          TwinMartTheme.brandLogo(size: 20),
+          TwinMartTheme.brandLogo(size: 20, context: context),
           const SizedBox(width: 8),
-          TwinMartTheme.brandText(fontSize: 22),
+          TwinMartTheme.brandText(fontSize: 22, context: context),
         ],
       ),
       actions: [
-        const Icon(Icons.notifications_none, color: darkText),
-        const SizedBox(width: 12),
-
+        Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            final isDark = themeProvider.isDarkMode;
+            return IconButton(
+              icon: Icon(
+                isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+                size: 20,
+              ),
+              onPressed: () => themeProvider.toggleTheme(!isDark),
+            );
+          },
+        ),
         FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
@@ -177,12 +190,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
               child: CircleAvatar(
                 backgroundColor: brandGreen,
+                radius: 18,
                 child: Text(
                   initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             );
@@ -196,7 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ================= PROMOTIONAL CAROUSEL =================
   Widget _buildPromotionalCarousel() {
     return SizedBox(
-      height: 160,
+      height: 180,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('promotions')
@@ -314,14 +325,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Positioned(right: -20, bottom: -20, child: Icon(icon, color: Colors.white.withOpacity(0.15), size: 140)),
             Padding(
-              padding: const EdgeInsets.all(25),
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
+                  ),
                   const SizedBox(height: 15),
                   ElevatedButton(
                     onPressed: onTap ?? () => widget.onShopRequest(null),
@@ -366,9 +387,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               "Experience the future of shopping.",
-              style: TextStyle(color: Colors.grey, fontSize: 15),
+              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey, fontSize: 15),
             ),
           ],
         );
@@ -378,13 +399,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ================= TOGGLE =================
   Widget _buildOnlineOfflineToggle() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10)
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 10)
         ],
       ),
       child: Row(
@@ -501,7 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(26),
       ),
       child: Row(
-        children: const [
+        children: [
           CircleAvatar(
             backgroundColor: Colors.white24,
             child: Icon(Icons.shopping_bag, color: Colors.white),
@@ -513,12 +535,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text("Current Cart",
                     style: TextStyle(color: Colors.white70)),
-                Text(
-                  "0 items",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold),
+                Consumer<CartProvider>(
+                  builder: (context, cart, child) {
+                    return Text(
+                      "${cart.itemCount} items",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold),
+                    );
+                  },
                 ),
               ],
             ),
@@ -550,49 +576,127 @@ class _DashboardScreenState extends State<DashboardScreen> {
               .collection('budget')
               .doc('settings')
               .snapshots(),
-          builder: (context, snapshot) {
+          builder: (context, budgetSnapshot) {
             double budget = 5000.0;
             double savings = 0.0;
             
-            if (snapshot.hasData && snapshot.data!.exists) {
-               final data = snapshot.data!.data() as Map<String, dynamic>?;
+            if (budgetSnapshot.hasData && budgetSnapshot.data!.exists) {
+               final data = budgetSnapshot.data!.data() as Map<String, dynamic>?;
                if (data != null) {
                  budget = (data['budget_limit'] ?? 5000.0).toDouble();
                  savings = (data['total_savings'] ?? 0.0).toDouble();
                }
             }
 
-            return Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Monthly Budget", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                      const SizedBox(height: 5),
-                      Text("₹${budget.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                Container(width: 1, height: 40, color: Colors.white24),
-                const SizedBox(width: 25),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Total Saved", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                      const SizedBox(height: 5),
-                      Row(
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                  .collection('transactions')
+                  .snapshots(),
+              builder: (context, transSnapshot) {
+                double offlineSpent = 0.0;
+                
+                if (transSnapshot.hasData) {
+                  for (var doc in transSnapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    if ((data['type'] ?? 'offline') == 'offline') {
+                      final double price = (data['price'] ?? 0.0).toDouble();
+                      final int qty = (data['quantity'] ?? 1) as int;
+                      offlineSpent += price * qty;
+                    }
+                  }
+                }
+
+                final bool isExceeded = offlineSpent > budget;
+                final double exceededAmt = offlineSpent - budget;
+
+                return Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(), // Replaced redundant wrapper with empty decoration
+                      child: Column(
                         children: [
-                          const Icon(Icons.stars, color: Colors.amberAccent, size: 20),
-                          const SizedBox(width: 5),
-                          Text("₹${savings.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Monthly Budget", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                    const SizedBox(height: 5),
+                                    Text("₹${budget.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                              Container(width: 1, height: 40, color: Colors.white24),
+                              const SizedBox(width: 25),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Total Saved", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                    const SizedBox(height: 5),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.stars, color: Colors.amberAccent, size: 20),
+                                        const SizedBox(width: 5),
+                                        Text("₹${savings.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isExceeded)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 18),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: BackdropFilter(
+                                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(color: Colors.white.withOpacity(0.18)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(color: Colors.white10, shape: BoxShape.circle),
+                                          child: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text("Offline Exceeded", style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w500)),
+                                              Text(
+                                                "₹${exceededAmt.toInt()} over limit",
+                                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white30, size: 12),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             );
           },
         ),
