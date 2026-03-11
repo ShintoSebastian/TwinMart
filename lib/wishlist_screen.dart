@@ -13,7 +13,7 @@ class WishlistScreen extends StatelessWidget {
     final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -78,17 +78,17 @@ class WishlistScreen extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: TwinMartTheme.darkText),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 5),
-          TwinMartTheme.brandLogo(size: 20),
+          TwinMartTheme.brandLogo(size: 20, context: context),
           const SizedBox(width: 8),
-          TwinMartTheme.brandText(fontSize: 22),
+          TwinMartTheme.brandText(fontSize: 22, context: context),
           const Spacer(),
-          const Text("Wishlist",
+          Text("Wishlist",
               style: TextStyle(
-                  color: TwinMartTheme.darkText, fontWeight: FontWeight.bold)),
+                  color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
           const SizedBox(width: 15),
         ],
       ),
@@ -139,9 +139,9 @@ class WishlistScreen extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 15),
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10)],
         ),
         child: Row(
           children: [
@@ -149,7 +149,7 @@ class WishlistScreen extends StatelessWidget {
               height: 70, 
               width: 70,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(15),
               ),
               child: ClipRRect(

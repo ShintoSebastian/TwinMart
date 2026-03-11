@@ -236,7 +236,12 @@ class CartScreen extends StatelessWidget {
                         isOnlineOrder: true,
                       ),
                     ),
-                  );
+                  ).then((result) {
+                    // Clear the cart after a successful payment
+                    if (result == true) {
+                      cart.clearCart();
+                    }
+                  });
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: green, 

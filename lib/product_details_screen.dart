@@ -47,9 +47,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     // Handle specifications
     final Map<String, dynamic> specs = widget.product['specifications'] ?? {};
+    final Map<String, dynamic> generalInfo = widget.product['generalInfo'] ?? {};
 
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -66,58 +67,75 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           ),
           BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildImageSection(images),
-                  Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(name, price),
-                        const SizedBox(height: 15),
-                        _buildDivider(),
-                        if (aboutItem.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          _buildSectionTitle("About this item"),
-                          const SizedBox(height: 10),
-                          ...aboutItem.split('\n').where((line) => line.trim().isNotEmpty).map((line) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text("• ",
-                                        style: TextStyle(
-                                            color: TwinMartTheme.brandGreen,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold)),
-                                    Expanded(
-                                      child: Text(
-                                        line.trim(),
-                                        style: TextStyle(
-                                            color: Colors.grey[700],
-                                            fontSize: 15,
-                                            height: 1.4),
+            child: SafeArea(
+              bottom: false,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildImageSection(images),
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(name, price),
+                          const SizedBox(height: 15),
+                          _buildDivider(),
+                          if (aboutItem.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            _buildSectionTitle("About this item"),
+                            const SizedBox(height: 10),
+                            ...aboutItem.split('\n').where((line) => line.trim().isNotEmpty).map((line) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("• ",
+                                          style: TextStyle(
+                                              color: TwinMartTheme.brandGreen,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold)),
+                                      Expanded(
+                                        child: Text(
+                                          line.trim(),
+                                          style: TextStyle(
+                                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8) ?? Colors.grey[700],
+                                              fontSize: 15,
+                                              height: 1.4),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              )),
-                        ],
-                        const SizedBox(height: 25),
-                        if (specs.isNotEmpty) ...[
-                          _buildSectionTitle("Specifications"),
-                          const SizedBox(height: 10),
-                          _buildSpecsList(specs),
+                                    ],
+                                  ),
+                                )),
+                          ],
                           const SizedBox(height: 25),
+                          if (specs.isNotEmpty) ...[
+                            _buildSectionTitle("Specifications"),
+                            const SizedBox(height: 10),
+                            _buildSpecsList(specs),
+                            const SizedBox(height: 25),
+                          ],
+                          if (generalInfo.isNotEmpty) ...[
+                            Text(
+                              "Product Information",
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleLarge?.color),
+                            ),
+                            const SizedBox(height: 15),
+                            Text(
+                              "GENERAL INFORMATION",
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildSpecsList(generalInfo),
+                            const SizedBox(height: 25),
+                          ],
+                          const SizedBox(height: 100),
                         ],
-                        const SizedBox(height: 100),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -137,7 +155,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       return Container(
         height: 350,
         width: double.infinity,
-        color: Colors.grey[100],
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[100],
         child: const Center(child: Text("🛍️", style: TextStyle(fontSize: 80))),
       );
     }
@@ -147,9 +165,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         Container(
           height: 400,
           width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Colors.white, // ✅ Blend with product image background
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: Colors.white, // Keep product image container white for standard product shots
+            borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
               bottomRight: Radius.circular(40),
             ),
@@ -208,7 +226,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           width: _currentImageIndex == index ? 20 : 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: _currentImageIndex == index ? twinGreen : Colors.grey[300],
+                            color: _currentImageIndex == index ? twinGreen : (Theme.of(context).brightness == Brightness.dark ? Colors.white24 : Colors.grey[300]),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -229,7 +247,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -249,7 +267,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   final bool isInWishlist = snapshot.hasData && snapshot.data!.exists;
                   return _circleButton(
                     icon: isInWishlist ? Icons.favorite : Icons.favorite_border,
-                    color: isInWishlist ? Colors.red : Colors.black87,
+                    color: isInWishlist ? Colors.red : (Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
                     onPressed: () => _toggleWishlist(userId, productId),
                   );
                 },
@@ -263,10 +281,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Widget _circleButton({required IconData icon, required VoidCallback onPressed, Color color = Colors.black87}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Theme.of(context).cardColor.withOpacity(0.9),
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.1), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
       child: IconButton(
@@ -282,7 +300,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       children: [
         Text(
           name,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1C252E)),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleLarge?.color),
         ),
         const SizedBox(height: 10),
         Row(
@@ -313,14 +331,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     return Container(
       height: 1,
       width: double.infinity,
-      color: Colors.grey[200],
+      color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.grey[200],
     );
   }
 
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1C252E)),
+      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleMedium?.color),
     );
   }
 
@@ -328,9 +346,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F9F9),
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : const Color(0xFFF9F9F9),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[100]!),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[100]!),
       ),
       child: Column(
         children: specs.entries.map((entry) {
@@ -364,56 +382,66 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, -5))
+            BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.08), blurRadius: 20, offset: const Offset(0, -5))
           ],
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(35),
             topRight: Radius.circular(35),
           ),
         ),
-        child: Row(
-          children: [
-            // Add to Cart / Quantity Controller
-            Expanded(
-              child: _buildAddToCartButton(cart, id, name, price, image),
-            ),
-            const SizedBox(width: 15),
-            // Buy Now
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PaymentMethodsScreen(
-                        amount: price,
-                        items: [{
-                          'id': id,
-                          'name': name,
-                          'price': price,
-                          'quantity': 1,
-                          'image': image,
-                        }],
-                        isOnlineOrder: true,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1C252E),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 58),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                  elevation: 0,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
+            child: Row(
+              children: [
+                // Add to Cart / Quantity Controller
+                Expanded(
+                  child: _buildAddToCartButton(cart, id, name, price, image),
                 ),
-                child: const Text("Buy Now", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
+                const SizedBox(width: 15),
+                // Buy Now
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final int selectedQty = cart.items[id]?.quantity ?? 1;
+                      final bool? success = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentMethodsScreen(
+                            amount: price * selectedQty,
+                            items: [{
+                              'id': id,
+                              'name': name,
+                              'price': price,
+                              'quantity': selectedQty,
+                              'image': image,
+                            }],
+                            isOnlineOrder: true,
+                          ),
+                        ),
+                      );
+
+                      if (success == true) {
+                        cart.removeItemCompletely(id);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? TwinMartTheme.brandGreen.withOpacity(0.2) : const Color(0xFF1C252E),
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark ? TwinMartTheme.brandGreen : Colors.white,
+                      minimumSize: const Size(double.infinity, 58),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      elevation: 0,
+                    ),
+                    child: const Text("Buy Now", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -447,6 +475,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 'name': name,
                 'price': price,
                 'image': image,
+                'category': widget.product['category'],
               }),
             ),
           ],
@@ -461,6 +490,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           'name': name,
           'price': price,
           'image': image,
+          'category': widget.product['category'],
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

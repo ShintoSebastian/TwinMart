@@ -6,9 +6,12 @@ import 'admin_transactions.dart';
 import 'admin_reports.dart';
 import 'admin_users.dart';
 import 'admin_promotions.dart';
+import 'admin_feedback.dart';
 import 'login.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -26,6 +29,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final Color sidebarColor = const Color(0xFF1E293B);
   final Color cardDark = const Color(0xFF1E293B);
   final Color twinGreen = const Color(0xFF10B981);
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForGlobalNotifications();
+  }
+
+  void _listenForGlobalNotifications() {
+    final DateTime listenerStartTime = DateTime.now().subtract(const Duration(seconds: 5));
+    FirebaseFirestore.instance
+        .collection('broadcasts')
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>;
+          final Timestamp? ts = data['timestamp'] as Timestamp?;
+          
+          if (ts == null) continue;
+          if (ts.toDate().isBefore(listenerStartTime)) continue;
+
+          if (data['type'] == 'promotion') {
+            NotificationService.showNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: data['title'] ?? "New Promotion",
+              body: data['body'] ?? "Check out the latest deals!",
+            );
+          }
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +114,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 5: return const ManageReportsPage();
       case 6: return const ManageUsersPage(); 
       case 7: return const ManageOffersPage();
+      case 8: return const ManageFeedbackPage();
       default: return const Center(child: Text("Coming Soon", style: TextStyle(color: Colors.white)));
     }
   }
@@ -97,6 +133,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _sidebarItem(5, Icons.description_outlined, "Reports"),
         _sidebarItem(6, Icons.people_outline, "Manage Users"),
         _sidebarItem(7, Icons.campaign_outlined, "Manage Offers"),
+        _sidebarItem(8, Icons.feedback_outlined, "Feedback"),
         const Spacer(),
         _buildSidebarFooter(),
       ],
@@ -219,6 +256,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     _buildActionBtn("Check Inventory", Icons.warehouse, Colors.orange, () => setState(() => _selectedIndex = 3)),
                     _buildActionBtn("Manage Users", Icons.person_add_alt_1, Colors.indigo, () => setState(() => _selectedIndex = 6)),
                     _buildActionBtn("Manage Offers", Icons.campaign, Colors.pinkAccent, () => setState(() => _selectedIndex = 7)),
+                    _buildActionBtn("User Feedback", Icons.feedback_outlined, Colors.redAccent, () => setState(() => _selectedIndex = 8)),
                     _buildActionBtn("View Reports", Icons.trending_up, Colors.green, () => setState(() => _selectedIndex = 5)),
                   ],
                 ),

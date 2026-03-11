@@ -68,7 +68,7 @@ class CartProvider with ChangeNotifier {
           price: (product['price'] ?? 0.0).toDouble(), 
           // Handle both 'image' and admin panel 'imageUrl' fields
           image: product['image'] ?? product['imageUrl'] ?? '🛍️',
-          category: product['category'] ?? 'Others',
+          category: product['category'] ?? 'Miscellaneous',
           quantity: 1,
         ),
       );

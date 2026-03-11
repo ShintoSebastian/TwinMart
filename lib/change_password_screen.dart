@@ -41,13 +41,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F9F8),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Change Password", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TwinMartTheme.brandLogo(size: 18, context: context),
+            const SizedBox(width: 8),
+            TwinMartTheme.brandText(fontSize: 18, context: context),
+            const SizedBox(width: 10),
+            Text("| Password", style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -58,9 +67,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(30),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10)],
                 ),
                 child: TextFormField(
                   controller: _newPasswordController,

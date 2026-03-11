@@ -30,6 +30,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+build/
 /build/
 /coverage/
 
@@ -39,7 +40,31 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Android and Desktop build files and binaries
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+android/app/build/
+android/build/
+*.dex
+*.apk
+*.aab
+
+# Desktop build folders
+linux/flutter/
+macos/Flutter/
+windows/flutter/
+bin/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Temp files
+*.tmp
+*.log
+tmp_*

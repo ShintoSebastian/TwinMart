@@ -8,16 +8,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'main_wrapper.dart';
 import 'package:twinmart_app/firebase_options.dart';
 import 'theme/twinmart_theme.dart';
+import 'theme/theme_provider.dart';
+
+import 'admin_dashboard.dart';
+import 'notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService.init();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const TwinMartApp(),
     ),
@@ -29,18 +35,36 @@ class TwinMartApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Roboto',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1DB98A)),
-      ),
+      theme: TwinMartTheme.lightTheme,
+      darkTheme: TwinMartTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
       // CHANGED: Removed StreamBuilder to stop auto-login
       // Now the app will ALWAYS start at the WelcomeScreen
-      home: const WelcomeScreen(), 
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            // Admin Check
+            if (snapshot.data?.email == 'admin@gmail.com') {
+              return const AdminDashboard();
+            }
+            return const MainWrapper();
+          }
+          return const WelcomeScreen();
+        },
+      ),
     );
   }
 }
+
+
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -48,19 +72,22 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const Color twinGreen = Color(0xFF1DB98A);
-    const Color peachTint = Color(0xFFFFE8D6); 
-    const Color mintTint = Color(0xFFCFF2EB);   
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final Color peachTint = isDark ? const Color(0xFF2C1B10) : const Color(0xFFFFE8D6); 
+    final Color mintTint = isDark ? const Color(0xFF102C27) : const Color(0xFFCFF2EB);   
+    final Color bgColor = isDark ? TwinMartTheme.bgDark : Colors.white;
 
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [peachTint, mintTint, Colors.white],
-            stops: [0.0, 0.45, 0.9], 
+            colors: [peachTint, mintTint, bgColor],
+            stops: const [0.0, 0.45, 0.9], 
           ),
         ),
         child: Center(
@@ -70,21 +97,21 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                TwinMartTheme.brandLogo(size: 32),
+                TwinMartTheme.brandLogo(size: 32, context: context),
                 const SizedBox(height: 12),
-                TwinMartTheme.brandText(fontSize: 26),
+                TwinMartTheme.brandText(fontSize: 26, context: context),
                 const SizedBox(height: 48),
 
                 const Text(
                   'Welcome to TwinMart',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Shop smarter, save time, skip the queue — works online & offline',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, color: Color(0xFF666666), height: 1.5),
+                  style: TextStyle(fontSize: 15, color: isDark ? Colors.white70 : const Color(0xFF666666), height: 1.5),
                 ),
                 const SizedBox(height: 60),
 

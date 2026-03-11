@@ -129,7 +129,16 @@ class ManageOffersPage extends StatelessWidget {
                     } else {
                       await FirebaseFirestore.instance.collection('promotions').doc(doc.id).update(data);
                     }
-                    if (context.mounted) Navigator.pop(context);
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Action completed successfully!"),
+                          backgroundColor: Color(0xFF10B981),
+                        ),
+                      );
+                    }
                   },
                   child: _buildGradientButton(context, doc == null ? "Create" : "Update"),
                 ),
