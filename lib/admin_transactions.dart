@@ -120,42 +120,69 @@ class ManageTransactionsPage extends StatelessWidget {
                                 itemCount: docs.length,
                                 separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
                                 itemBuilder: (context, index) {
-                                  final data = docs[index].data() as Map<String, dynamic>;
-                                  final String docId = docs[index].id;
-                                  final DateTime? date = (data['timestamp'] as Timestamp?)?.toDate();
-                                  final String dateStr = date != null ? "${date.day}/${date.month}/${date.year}" : "--";
-                                  
-                                  return Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
-                                    child: Row(
-                                      children: [
-                                        Expanded(child: Text(docId.substring(0, 10) + "...", style: const TextStyle(color: Colors.white70, fontSize: 12))),
-                                        Expanded(child: Text(dateStr, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 12))),
-                                        Expanded(child: Text("₹${(data['totalAmount'] ?? 0).toInt()}", textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
-                                        if (!isMobile)
-                                          Expanded(
-                                            child: Center(
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                                                child: const Text("Success", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-                                              ),
-                                            ),
-                                          ),
-                                        Expanded(
-                                          child: Align(
-                                            alignment: Alignment.centerRight,
-                                            child: IconButton(
-                                              icon: const Icon(Icons.open_in_new_rounded, color: Colors.blueGrey, size: 18),
-                                              onPressed: () {
-                                                // TODO: Show transaction details dialog
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                   final data = docs[index].data() as Map<String, dynamic>;
+                                   final String docId = docs[index].id;
+                                   final DateTime? date = (data['timestamp'] as Timestamp?)?.toDate();
+                                   final String dateStr = date != null ? "${date.day}/${date.month}/${date.year}" : "--";
+                                   
+                                   return Padding(
+                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
+                                     child: Row(
+                                       children: [
+                                         Expanded(
+                                           flex: 2, 
+                                           child: Text(
+                                             docId.length > 8 ? docId.substring(0, 8) + "..." : docId, 
+                                             style: const TextStyle(color: Colors.white70, fontSize: 12)
+                                           )
+                                         ),
+                                         Expanded(
+                                           flex: 2, 
+                                           child: Text(
+                                             dateStr, 
+                                             textAlign: TextAlign.center, 
+                                             style: const TextStyle(color: Colors.white70, fontSize: 12)
+                                           )
+                                         ),
+                                         Expanded(
+                                           flex: 2, 
+                                           child: FittedBox(
+                                             fit: BoxFit.scaleDown,
+                                             child: Text(
+                                               "₹${(data['totalAmount'] ?? 0).toInt()}", 
+                                               textAlign: TextAlign.center, 
+                                               style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 14)
+                                             ),
+                                           )
+                                         ),
+                                         if (!isMobile)
+                                           Expanded(
+                                             flex: 2,
+                                             child: Center(
+                                               child: Container(
+                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                 decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                                 child: const Text("Success", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                                               ),
+                                             ),
+                                           ),
+                                         Expanded(
+                                           flex: 1,
+                                           child: Align(
+                                             alignment: Alignment.centerRight,
+                                             child: IconButton(
+                                               padding: EdgeInsets.zero,
+                                               constraints: const BoxConstraints(),
+                                               icon: const Icon(Icons.open_in_new_rounded, color: Colors.blueGrey, size: 20),
+                                               onPressed: () {
+                                                 // TODO: Show transaction details dialog
+                                               },
+                                             ),
+                                           ),
+                                         ),
+                                       ],
+                                     ),
+                                   );
                                 },
                               );
                             },

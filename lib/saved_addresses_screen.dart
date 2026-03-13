@@ -199,59 +199,102 @@ class SavedAddressesScreen extends StatelessWidget {
     final data = doc.data() as Map<String, dynamic>;
     bool isDefault = data['isDefault'] ?? false;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: isDefault ? Border.all(color: green, width: 2) : null,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10)],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: green.withOpacity(0.1),
-            child: Icon(data['type'] == 'Home' ? Icons.home : Icons.work, color: green),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(data['type'] ?? "Other", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    if (isDefault)
-                      Text("DEFAULT", style: TextStyle(color: green, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(data['fullAddress'] ?? "Address details...", style: const TextStyle(color: Colors.grey, fontSize: 14)),
-              ],
+    return InkWell(
+      onTap: () async {
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF1DB98A))),
+        );
+
+        try {
+          final batch = FirebaseFirestore.instance.batch();
+          
+          // Get all addresses for this user
+          final allAddresses = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('userAddresses')
+              .get();
+
+          // Reset all to false and set current to true
+          for (var addrDoc in allAddresses.docs) {
+            batch.update(addrDoc.reference, {'isDefault': addrDoc.id == doc.id});
+          }
+
+          await batch.commit();
+          
+          if (context.mounted) {
+            Navigator.pop(context); // Close loading dialog
+            Navigator.pop(context); // Return to Order Summary
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Delivery address updated")),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            Navigator.pop(context); // Close loading dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Error updating address: $e")),
+            );
+          }
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: isDefault ? Border.all(color: green, width: 2) : null,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.03), blurRadius: 10)],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: green.withOpacity(0.1),
+              child: Icon(data['type'] == 'Home' ? Icons.home : Icons.work, color: green),
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.grey),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text("Edit")),
-              const PopupMenuItem(value: 'delete', child: Text("Delete", style: TextStyle(color: Colors.red))),
-            ],
-            onSelected: (val) async {
-              if (val == 'delete') {
-                // ✅ Delete from Firestore
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .collection('userAddresses')
-                    .doc(doc.id)
-                    .delete();
-              }
-            },
-          ),
-        ],
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(data['type'] ?? "Other", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      if (isDefault)
+                        Text("DEFAULT", style: TextStyle(color: green, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(data['fullAddress'] ?? "Address details...", style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.grey),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Text("Edit")),
+                const PopupMenuItem(value: 'delete', child: Text("Delete", style: TextStyle(color: Colors.red))),
+              ],
+              onSelected: (val) async {
+                if (val == 'delete') {
+                  // ✅ Delete from Firestore
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .collection('userAddresses')
+                      .doc(doc.id)
+                      .delete();
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

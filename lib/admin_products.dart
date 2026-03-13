@@ -346,28 +346,65 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                                   final doc = docs[index];
                                   final data = doc.data() as Map<String, dynamic>;
                                   return Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 24, vertical: 12),
+                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 16),
                                     child: Row(
                                       children: [
-                                        Expanded(flex: isMobile ? 4 : 2, child: Text(data['name'] ?? "", style: TextStyle(color: Colors.white, fontSize: isMobile ? 13 : 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                        Expanded(flex: isMobile ? 2 : 1, child: Text("₹${data['price']}", style: TextStyle(color: Colors.white, fontSize: isMobile ? 13 : 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                        if (!isMobile) Expanded(child: Text(data['category'] ?? "General", style: const TextStyle(color: Colors.blueGrey), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                         Expanded(
-                                          flex: isMobile ? 2 : 1,
+                                          flex: isMobile ? 3 : 2, 
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                data['name'] ?? "", 
+                                                style: TextStyle(color: Colors.white, fontSize: isMobile ? 14 : 15, fontWeight: FontWeight.bold), 
+                                                maxLines: 1, 
+                                                overflow: TextOverflow.ellipsis
+                                              ),
+                                              if (isMobile)
+                                                Text(
+                                                  data['category'] ?? "General", 
+                                                  style: const TextStyle(color: Colors.blueGrey, fontSize: 11),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                            ],
+                                          )
+                                        ),
+                                        Expanded(
+                                          flex: 1, 
+                                          child: Text(
+                                            "₹${data['price']}", 
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(color: const Color(0xFF10B981), fontSize: isMobile ? 13 : 14, fontWeight: FontWeight.bold), 
+                                            maxLines: 1, 
+                                            overflow: TextOverflow.ellipsis
+                                          )
+                                        ),
+                                        if (!isMobile) 
+                                          Expanded(
+                                            child: Text(
+                                              data['category'] ?? "General", 
+                                              style: const TextStyle(color: Colors.blueGrey), 
+                                              maxLines: 1, 
+                                              overflow: TextOverflow.ellipsis
+                                            )
+                                          ),
+                                        Expanded(
+                                          flex: 1,
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.end,
                                             children: [
                                               IconButton(
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
-                                                icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 18 : 20),
+                                                icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 20 : 22),
                                                 onPressed: () => _showProductDialog(context, doc: doc),
                                               ),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 12),
                                               IconButton(
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
-                                                icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 18 : 20),
+                                                icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 20 : 22),
                                                 onPressed: () => _showDeleteConfirmation(context, doc.id),
                                               ),
                                             ],

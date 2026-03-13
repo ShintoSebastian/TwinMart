@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'package:twinmart_app/e_receipt_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui' as ui;
 
 class PaymentMethodsScreen extends StatefulWidget {
@@ -45,8 +47,18 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       
       debugPrint("🚀 Starting Payment Transaction: $transactionId");
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot snapshot = await transaction.get(budgetRef);
+        // 1. Fetch budget and product snapshots first (Reads)
+        DocumentSnapshot budgetSnapshot = await transaction.get(budgetRef);
         
+        Map<String, DocumentSnapshot> productSnaps = {};
+        for (var item in widget.items) {
+          if (item['id'] != null && !productSnaps.containsKey(item['id'])) {
+            final pRef = FirebaseFirestore.instance.collection('products').doc(item['id']);
+            productSnaps[item['id']] = await transaction.get(pRef);
+          }
+        }
+
+        // 2. Perform Writes
         final orderRef = FirebaseFirestore.instance.collection('orders').doc(transactionId);
         transaction.set(orderRef, {
           'userId': user.uid,
@@ -59,6 +71,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         });
 
         for (var item in widget.items) {
+          // A. Create User Transaction Record
           final transRef = userRef.collection('transactions').doc();
           transaction.set(transRef, {
             'transactionId': transactionId,
@@ -72,9 +85,22 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             'paymentMethod': _getPaymentMethodName(_selectedMethodIndex),
             'type': widget.isOnlineOrder ? 'online' : 'offline',
           });
+
+          // B. Decrement Product Stock (Simplified to single 'stock' field)
+          final snap = productSnaps[item['id']];
+          if (snap != null && snap.exists) {
+            final data = snap.data() as Map<String, dynamic>;
+            final int currentStock = (data['stock'] ?? 0);
+            final int buyQty = (item['quantity'] ?? 1);
+            transaction.update(snap.reference, {'stock': currentStock - buyQty});
+            
+            // Also sync other fields if they exist to prevent confusion
+            if (data.containsKey('onlineStock')) transaction.update(snap.reference, {'onlineStock': currentStock - buyQty});
+            if (data.containsKey('offlineStock')) transaction.update(snap.reference, {'offlineStock': currentStock - buyQty});
+          }
         }
         
-        if (snapshot.exists) {
+        if (budgetSnapshot.exists) {
           // Build a map of category -> total spend for this session
           Map<String, double> categoryTotals = {};
           for (var item in widget.items) {
@@ -88,7 +114,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
           for (var entry in categoryTotals.entries) {
             double currentSpend = 0.0;
             try {
-              currentSpend = (snapshot.get('category_spending.${entry.key}') ?? 0.0).toDouble();
+              currentSpend = (budgetSnapshot.get('category_spending.${entry.key}') ?? 0.0).toDouble();
             } catch (_) {}
             updates['category_spending.${entry.key}'] = currentSpend + entry.value;
           }
@@ -119,6 +145,51 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ✅ Function to simulate/trigger email receipt
+  Future<void> _sendEmailReceipt(String txnId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+    if (email == null) return;
+
+    final String subject = "Your TwinMart Order Confirmation - $txnId";
+    final String body = "Hi ${user?.displayName ?? 'Customer'},\n\n"
+        "Thank you for shopping with TwinMart! Your order has been placed successfully.\n\n"
+        "Order Summary:\n"
+        "--------------------------\n"
+        "Order ID: $txnId\n"
+        "Total Amount: ₹${widget.amount}\n"
+        "Payment Method: ${_getPaymentMethodName(_selectedMethodIndex)}\n"
+        "Items: ${widget.items.length}\n"
+        "--------------------------\n\n"
+        "You can view your full e-receipt in the TwinMart app.\n\n"
+        "Happy Shopping!\n"
+        "Team TwinMart";
+
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: _encodeQueryParameters(<String, String>{
+        'subject': subject,
+        'body': body,
+      }),
+    );
+
+    try {
+      if (await canLaunchUrl(emailLaunchUri)) {
+        await launchUrl(emailLaunchUri);
+      }
+    } catch (e) {
+      debugPrint("Error launching email: $e");
+    }
+  }
+
+  String? _encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map((MapEntry<String, String> e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
   }
 
   String _getPaymentMethodName(int index) {
@@ -247,9 +318,34 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                   minimumSize: const Size(double.infinity, 48),
                   elevation: 0,
                 ),
-                onPressed: () {
-                  Navigator.pop(context);       // Close dialog
-                  Navigator.pop(context, true); // Return to previous screen
+                onPressed: () async {
+                  // 1. Simulate a background process for sending email
+                  final String userEmail = FirebaseAuth.instance.currentUser?.email ?? "your gmail";
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          ),
+                          const SizedBox(width: 15),
+                          Text("Sending Receipt to $userEmail..."),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF1DB98A),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+
+                  // 2. Trigger the local email composer as a backup/demo
+                  await _sendEmailReceipt(txnId);
+
+                  if (context.mounted) {
+                    Navigator.pop(context);       // Close dialog
+                    Navigator.pop(context, true); // Return to shopping
+                  }
                 },
                 child: const Text(
                   "Done",
