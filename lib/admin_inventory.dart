@@ -8,6 +8,7 @@ class ManageInventoryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color bgDark = Color(0xFF0F172A);
     const Color cardDark = Color(0xFF1E293B);
+    const Color twinGreen = Color(0xFF10B981);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -46,7 +47,7 @@ class ManageInventoryPage extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        // --- FIXED TABLE HEADER ---
+                        // --- TABLE HEADER ---
                         Padding(
                           padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
                           child: Row(
@@ -93,7 +94,7 @@ class ManageInventoryPage extends StatelessWidget {
                           child: StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance.collection('products').snapshots(),
                             builder: (context, snapshot) {
-                              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)));
+                              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: twinGreen));
                               final docs = snapshot.data!.docs;
 
                               if (docs.isEmpty) {
@@ -116,7 +117,8 @@ class ManageInventoryPage extends StatelessWidget {
                                 itemBuilder: (context, index) {
                                   final data = docs[index].data() as Map<String, dynamic>;
                                    final String docId = docs[index].id;
-                                   int stock = data['stock'] ?? 0;
+                                   
+                                   int stock = (data['stock'] ?? 0);
                                    int threshold = data['threshold'] ?? 10;
                                    
                                    Color statusColor = Colors.green;
@@ -130,21 +132,49 @@ class ManageInventoryPage extends StatelessWidget {
                                    }
 
                                    return Padding(
-                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 12.0),
+                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
                                      child: Row(
                                        children: [
                                          Expanded(
-                                           flex: 2,
+                                           flex: isMobile ? 3 : 2,
                                            child: Column(
                                              crossAxisAlignment: CrossAxisAlignment.start,
                                              children: [
-                                               Text(data['name'] ?? "", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                               Text(data['category'] ?? "General", style: const TextStyle(color: Colors.blueGrey, fontSize: 11)),
+                                               Text(
+                                                 data['name'] ?? "", 
+                                                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: isMobile ? 14 : 15), 
+                                                 maxLines: 1, 
+                                                 overflow: TextOverflow.ellipsis
+                                               ),
+                                               Text(
+                                                 data['category'] ?? "General", 
+                                                 style: const TextStyle(color: Colors.blueGrey, fontSize: 11),
+                                                 maxLines: 1,
+                                                 overflow: TextOverflow.ellipsis,
+                                               ),
                                              ],
                                            ),
                                          ),
-                                         Expanded(child: Text(stock.toString(), textAlign: TextAlign.center, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold))),
-                                         Expanded(child: Text(threshold.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.blueGrey))),
+                                         Expanded(
+                                           child: FittedBox(
+                                             fit: BoxFit.scaleDown,
+                                             child: Text(
+                                               stock.toString(), 
+                                               textAlign: TextAlign.center, 
+                                               style: TextStyle(color: twinGreen, fontWeight: FontWeight.bold, fontSize: 15)
+                                             ),
+                                           )
+                                         ),
+                                         Expanded(
+                                           child: FittedBox(
+                                             fit: BoxFit.scaleDown,
+                                             child: Text(
+                                               threshold.toString(), 
+                                               textAlign: TextAlign.center, 
+                                               style: const TextStyle(color: Colors.blueGrey, fontSize: 13)
+                                             ),
+                                           )
+                                         ),
                                          if (!isMobile)
                                            Expanded(
                                              child: Center(
@@ -162,7 +192,7 @@ class ManageInventoryPage extends StatelessWidget {
                                                IconButton(
                                                  padding: EdgeInsets.zero,
                                                  constraints: const BoxConstraints(),
-                                                 icon: const Icon(Icons.remove_circle_outline, color: Colors.blueGrey, size: 20),
+                                                 icon: const Icon(Icons.remove_circle_outline, color: Colors.blueGrey, size: 22),
                                                  onPressed: () {
                                                    FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock - 1});
                                                  },
@@ -171,7 +201,7 @@ class ManageInventoryPage extends StatelessWidget {
                                                IconButton(
                                                  padding: EdgeInsets.zero,
                                                  constraints: const BoxConstraints(),
-                                                 icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981), size: 20),
+                                                 icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981), size: 22),
                                                  onPressed: () {
                                                    FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock + 1});
                                                  },
@@ -221,3 +251,4 @@ class ManageInventoryPage extends StatelessWidget {
     );
   }
 }
+

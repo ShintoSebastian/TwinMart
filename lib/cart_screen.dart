@@ -5,6 +5,7 @@ import 'cart_provider.dart';
 import 'product_details_screen.dart';
 import 'payment_methods_screen.dart';
 import 'theme/twinmart_theme.dart';
+import 'order_summary_screen.dart';
 import 'dart:ui' as ui;
 
 class CartScreen extends StatelessWidget {
@@ -16,7 +17,7 @@ class CartScreen extends StatelessWidget {
     const Color twinGreen = Color(0xFF1DB98A);
 
     return Scaffold(
-      backgroundColor: TwinMartTheme.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           TwinMartTheme.bgBlob(
@@ -63,13 +64,13 @@ class CartScreen extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: TwinMartTheme.darkText),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).iconTheme.color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 5),
-          TwinMartTheme.brandLogo(size: 20),
+          TwinMartTheme.brandLogo(size: 20, context: context),
           const SizedBox(width: 8),
-          TwinMartTheme.brandText(fontSize: 22),
+          TwinMartTheme.brandText(fontSize: 22, context: context),
           const Spacer(),
           if (cart.items.isNotEmpty)
             IconButton(
@@ -99,9 +100,9 @@ class CartScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white, 
+        color: Theme.of(context).cardColor, 
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)]
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.02), blurRadius: 10)]
       ),
       child: GestureDetector(
         onTap: () async {
@@ -142,7 +143,7 @@ class CartScreen extends StatelessWidget {
               width: 70,
               clipBehavior: Clip.antiAlias, 
               decoration: BoxDecoration(
-                color: const Color(0xFFF9F9F9), 
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : const Color(0xFFF9F9F9), 
                 borderRadius: BorderRadius.circular(15)
               ),
               child: Hero(
@@ -168,12 +169,16 @@ class CartScreen extends StatelessWidget {
               ),
             ),
             Container(
-              decoration: BoxDecoration(color: const Color(0xFFF4F9F8), borderRadius: BorderRadius.circular(15)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.08) : const Color(0xFFF4F9F8), 
+                borderRadius: BorderRadius.circular(15)
+              ),
               child: Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.remove, size: 18), 
-                    onPressed: () => cart.removeSingleItem(item.id)
+                    onPressed: () => cart.removeSingleItem(item.id),
+                    color: Theme.of(context).iconTheme.color,
                   ),
                   Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   IconButton(
@@ -198,9 +203,9 @@ class CartScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, -5))]
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05), blurRadius: 15, offset: const Offset(0, -5))]
       ),
       child: SafeArea(
         child: Column(
@@ -223,21 +228,19 @@ class CartScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PaymentMethodsScreen(
-                        amount: cart.totalAmount,
+                      builder: (context) => OrderSummaryScreen(
                         items: cart.items.values.map((item) => {
                           'id': item.id,
                           'name': item.name,
                           'price': item.price,
                           'quantity': item.quantity,
-                          'image': item.image,
+                          'imageUrl': item.image,
                           'category': item.category,
+                          // Add original price if available in your item model
                         }).toList(),
-                        isOnlineOrder: true,
                       ),
                     ),
                   ).then((result) {
-                    // Clear the cart after a successful payment
                     if (result == true) {
                       cart.clearCart();
                     }

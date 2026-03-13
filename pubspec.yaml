@@ -30,6 +30,11 @@ dependencies:
   flutter_local_notifications: ^20.1.0
   firebase_messaging: ^15.2.10
   url_launcher: ^6.3.2
+  csv: ^7.2.0
+  path_provider: ^2.1.5
+  share_plus: ^12.0.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

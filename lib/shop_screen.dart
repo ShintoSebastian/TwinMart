@@ -176,9 +176,17 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
           const SizedBox(width: 12),
           _iconBox(
-            icon: isGridView ? Icons.grid_view_rounded : Icons.list_rounded,
+            icon: Icons.format_list_bulleted_rounded,
             green: green,
-            onTap: () => setState(() => isGridView = !isGridView),
+            isActive: !isGridView,
+            onTap: () => setState(() => isGridView = false),
+          ),
+          const SizedBox(width: 8),
+          _iconBox(
+            icon: Icons.grid_view_rounded,
+            green: green,
+            isActive: isGridView,
+            onTap: () => setState(() => isGridView = true),
           ),
           const SizedBox(width: 10),
           Consumer<CartProvider>(
@@ -202,6 +210,7 @@ class _ShopScreenState extends State<ShopScreen> {
     required Color green,
     VoidCallback? onTap,
     int badge = 0,
+    bool isActive = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -212,11 +221,11 @@ class _ShopScreenState extends State<ShopScreen> {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: isActive ? green : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: green.withOpacity(0.5)),
+              border: Border.all(color: isActive ? green : green.withOpacity(0.3)),
             ),
-            child: Icon(icon, color: green),
+            child: Icon(icon, color: isActive ? Colors.white : green),
           ),
           if (badge > 0)
             Positioned(
@@ -355,19 +364,30 @@ class _ShopScreenState extends State<ShopScreen> {
                   .contains(searchQuery.toLowerCase())).toList();
         }
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: count,
-            crossAxisSpacing: 20,
-            mainAxisSpacing: 20,
-            childAspectRatio: 0.65,
-          ),
-          itemCount: products.length,
-          itemBuilder: (_, i) =>
-              _ProductCard(product: products[i], green: green),
-        );
+        if (isGridView) {
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: count,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              childAspectRatio: 0.65,
+            ),
+            itemCount: products.length,
+            itemBuilder: (_, i) =>
+                _ProductCard(product: products[i], green: green),
+          );
+        } else {
+          return ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: products.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 15),
+            itemBuilder: (_, i) =>
+                _ProductListTile(product: products[i], green: green),
+          );
+        }
       },
     );
   }
@@ -502,6 +522,16 @@ class _ProductCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
+                if (product['description'] != null && product['description'].toString().isNotEmpty)
+                   Padding(
+                     padding: const EdgeInsets.only(top: 2),
+                     child: Text(
+                       product['description'],
+                       maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
+                       style: TextStyle(color: Colors.grey[500], fontSize: 9),
+                     ),
+                   ),
                 if (product['offerLine'] != null && product['offerLine'].toString().isNotEmpty)
                    Padding(
                      padding: const EdgeInsets.only(top: 2),
@@ -686,3 +716,252 @@ class _ProductCard extends StatelessWidget {
     }
   }
 }
+
+class _ProductListTile extends StatelessWidget {
+  final Map<String, dynamic> product;
+  final Color green;
+
+  const _ProductListTile({required this.product, required this.green});
+
+  Future<void> _toggleWishlist(String userId, String productId) async {
+    final wishlistRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('wishlist')
+        .doc(productId);
+
+    final doc = await wishlistRef.get();
+
+    if (doc.exists) {
+      await wishlistRef.delete();
+    } else {
+      await wishlistRef.set({
+        'name': product['name'],
+        'price': product['price'],
+        'imageUrl': product['imageUrl'],
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = Provider.of<CartProvider>(context);
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    final String productId = product['id'] ?? "";
+    final double price = (product['price'] ?? 0).toDouble();
+    
+    final dynamic rawUrl = product['imageUrl'];
+    final String? imageUrl = (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl.trim() : null;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailsScreen(product: product),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            // Image Section
+            Hero(
+              tag: 'product-$productId',
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          height: 80,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Text("🛍️", style: TextStyle(fontSize: 24)),
+                        )
+                      : const Text("🛍️", style: TextStyle(fontSize: 32)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            // Info Section
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          product['name'] ?? "Product",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                      if (userId.isNotEmpty)
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userId)
+                              .collection('wishlist')
+                              .doc(productId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            final bool isInWishlist = snapshot.hasData && snapshot.data!.exists;
+                            return GestureDetector(
+                              onTap: () => _toggleWishlist(userId, productId),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  isInWishlist ? Icons.favorite : Icons.favorite_border,
+                                  color: isInWishlist ? Colors.red : Colors.grey,
+                                  size: 20,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                  if (product['description'] != null && product['description'].toString().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        product['description'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (product['originalPrice'] != null && (product['originalPrice'] as num) > price)
+                            Text(
+                              "₹${(product['originalPrice'] as num).toInt()}",
+                              style: const TextStyle(color: Colors.grey, fontSize: 10, decoration: TextDecoration.lineThrough),
+                            ),
+                          Text(
+                            "₹${price.toInt()}",
+                            style: TextStyle(color: green, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      _buildCartButton(cart, productId, price, imageUrl),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartButton(CartProvider cart, String productId, double price, String? imageUrl) {
+    final int qty = cart.items[productId]?.quantity ?? 0;
+    
+    if (qty == 0) {
+      return GestureDetector(
+        onTap: () {
+          cart.addToCart({
+            'id': productId,
+            'name': product['name'],
+            'price': price,
+            'image': imageUrl ?? "🛍️",
+            'category': product['category'],
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: green,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: green.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: const Text(
+            "Add",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        height: 35,
+        decoration: BoxDecoration(
+          color: green,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: green.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () => cart.removeSingleItem(productId),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.remove, color: Colors.white, size: 16),
+              ),
+            ),
+            Text(
+              qty.toString(),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+            ),
+            GestureDetector(
+              onTap: () {
+                cart.addToCart({
+                  'id': productId,
+                  'name': product['name'],
+                  'price': price,
+                  'image': imageUrl ?? "🛍️",
+                  'category': product['category'],
+                });
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(Icons.add, color: Colors.white, size: 16),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+}

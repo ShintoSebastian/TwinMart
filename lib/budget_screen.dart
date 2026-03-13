@@ -686,7 +686,22 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   final data = doc.data() as Map<String, dynamic>;
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(backgroundColor: Color(0xFFF4F9F8), child: Icon(Icons.shopping_bag_outlined)),
+                    leading: Container(
+                      height: 48, width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F9F8),
+                        borderRadius: BorderRadius.circular(12),
+                        image: data['productImage'] != null && data['productImage'].toString().isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(data['productImage']),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                      ),
+                      child: data['productImage'] != null && data['productImage'].toString().isNotEmpty
+                        ? null
+                        : const Icon(Icons.shopping_bag_outlined),
+                    ),
                     title: Text(data['productName'] ?? 'Item', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(data['category'] ?? 'Offline Scan'),
                     trailing: Text("-₹${data['price']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),

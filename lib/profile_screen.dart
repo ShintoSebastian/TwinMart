@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'edit_profile_screen.dart';
 import 'order_history_screen.dart';
-import 'payment_methods_screen.dart';
 import 'saved_addresses_screen.dart';
 import 'wishlist_screen.dart'; 
 import 'notifications_screen.dart'; 
@@ -389,20 +388,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: _handleChangePassword,
           ),
 
-          _settingsTile(
-            icon: Icons.credit_card,
-            title: "Payment Methods",
-            subtitle: "Manage cards & UPI",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PaymentMethodsScreen(
-                  amount: 0.0,
-                  items: [],
-                )),
-              );
-            },
-          ),
           _settingsTile(
             icon: Icons.location_on_outlined,
             title: "Saved Addresses",

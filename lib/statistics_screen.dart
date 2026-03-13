@@ -1099,8 +1099,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             children: [
               Container(
                 height: 54, width: 54,
-                decoration: BoxDecoration(color: _getCatColor(tx['category']).withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
-                child: Icon(_getCatIcon(tx['category']), color: _getCatColor(tx['category'])),
+                decoration: BoxDecoration(
+                  color: _getCatColor(tx['category']).withOpacity(0.08), 
+                  borderRadius: BorderRadius.circular(16),
+                  image: tx['image'] != null && tx['image'].toString().isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(tx['image']),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                ),
+                child: tx['image'] != null && tx['image'].toString().isNotEmpty
+                  ? null
+                  : Icon(_getCatIcon(tx['category']), color: _getCatColor(tx['category'])),
               ),
               const SizedBox(width: 16),
               Expanded(

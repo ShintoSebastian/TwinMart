@@ -73,7 +73,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           key: _scaffoldKey,
           backgroundColor: bgDark,
           // Mobile View: Use a Drawer
-          drawer: isMobile ? Drawer(child: _buildSidebarContents(true)) : null,
+          drawer: isMobile ? Drawer(
+            backgroundColor: sidebarColor,
+            child: _buildSidebarContents(true)
+          ) : null,
           appBar: isMobile 
             ? AppBar(
                 title: const Text("Dashboard", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -121,22 +124,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // --- SHARED SIDEBAR/DRAWER CONTENT ---
   Widget _buildSidebarContents(bool isDrawer) {
-    return Column(
-      children: [
-        _buildSidebarHeader(),
-        const Divider(color: Colors.white10),
-        _sidebarItem(0, Icons.grid_view_rounded, "Dashboard"),
-        _sidebarItem(1, Icons.inventory_2_outlined, "Products"),
-        _sidebarItem(2, Icons.category_outlined, "Categories"),
-        _sidebarItem(3, Icons.warehouse_outlined, "Inventory"),
-        _sidebarItem(4, Icons.receipt_long_outlined, "Transactions"),
-        _sidebarItem(5, Icons.description_outlined, "Reports"),
-        _sidebarItem(6, Icons.people_outline, "Manage Users"),
-        _sidebarItem(7, Icons.campaign_outlined, "Manage Offers"),
-        _sidebarItem(8, Icons.feedback_outlined, "Feedback"),
-        const Spacer(),
-        _buildSidebarFooter(),
-      ],
+    return Container(
+      color: sidebarColor,
+      child: Column(
+        children: [
+          _buildSidebarHeader(),
+          const Divider(color: Colors.white10),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _sidebarItem(0, Icons.grid_view_rounded, "Dashboard"),
+                  _sidebarItem(1, Icons.inventory_2_outlined, "Products"),
+                  _sidebarItem(2, Icons.category_outlined, "Categories"),
+                  _sidebarItem(3, Icons.warehouse_outlined, "Inventory"),
+                  _sidebarItem(4, Icons.receipt_long_outlined, "Transactions"),
+                  _sidebarItem(5, Icons.description_outlined, "Reports"),
+                  _sidebarItem(6, Icons.people_outline, "Manage Users"),
+                  _sidebarItem(7, Icons.campaign_outlined, "Manage Offers"),
+                  _sidebarItem(8, Icons.feedback_outlined, "Feedback"),
+                ],
+              ),
+            ),
+          ),
+          _buildSidebarFooter(),
+        ],
+      ),
     );
   }
 
@@ -297,17 +310,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                const SizedBox(height: 8),
-                Text(val, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, 
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(val, 
+                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 10),
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 24),
             ),
@@ -328,7 +351,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 12),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)
+              ),
+            ),
           ],
         ),
       ),
@@ -355,28 +387,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildSidebarFooter() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(backgroundColor: Colors.teal.shade800, radius: 18, child: const Text("A", style: TextStyle(color: Colors.white, fontSize: 12))),
-            title: const Text("admin@gmail.com", style: TextStyle(color: Colors.white, fontSize: 13)),
-            subtitle: const Text("Administrator", style: TextStyle(color: Colors.blueGrey, fontSize: 11)),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (c) => const LoginScreen()), (r) => false),
-            child: const Row(
-              children: [
-                Icon(Icons.logout, color: Colors.blueGrey, size: 18),
-                SizedBox(width: 12),
-                Text("Sign out", style: TextStyle(color: Colors.blueGrey, fontSize: 14)),
-              ],
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(backgroundColor: Colors.teal.shade800, radius: 18, child: const Text("A", style: TextStyle(color: Colors.white, fontSize: 12))),
+              title: const Text("admin@gmail.com", style: TextStyle(color: Colors.white, fontSize: 13, overflow: TextOverflow.ellipsis)),
+              subtitle: const Text("Administrator", style: TextStyle(color: Colors.blueGrey, fontSize: 11)),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (c) => const LoginScreen()), (r) => false),
+              child: const Row(
+                children: [
+                  Icon(Icons.logout, color: Colors.blueGrey, size: 18),
+                  SizedBox(width: 12),
+                  Text("Sign out", style: TextStyle(color: Colors.blueGrey, fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

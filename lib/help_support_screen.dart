@@ -50,12 +50,7 @@ class HelpSupportScreen extends StatelessWidget {
             const SizedBox(height: 30),
             _buildPastFeedback(context),
             const SizedBox(height: 30),
-            const Text(
-              "Frequently Asked Questions",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            _buildFaqList(context),
+
           ],
         ),
       ),
@@ -362,56 +357,5 @@ class HelpSupportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFaqList(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(
-              Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05,
-            ),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _faqTile(
-            "How do I track my order?",
-            "You can track your order in the 'Order History' section of your profile.",
-          ),
-          const Divider(height: 1),
-          _faqTile(
-            "What is the return policy?",
-            "Items can be returned within 7 days of delivery if they are in original condition.",
-          ),
-          const Divider(height: 1),
-          _faqTile(
-            "How do I change my address?",
-            "Go to 'Saved Addresses' in your profile settings to add or edit delivery locations.",
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _faqTile(String question, String answer) {
-    return ExpansionTile(
-      title: Text(
-        question,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-          child: Text(
-            answer,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-          ),
-        ),
-      ],
-    );
-  }
 }

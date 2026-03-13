@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'cart_provider.dart';
 import 'payment_methods_screen.dart';
+import 'order_summary_screen.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -411,16 +412,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       final bool? success = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaymentMethodsScreen(
-                            amount: price * selectedQty,
+                          builder: (context) => OrderSummaryScreen(
                             items: [{
-                              'id': id,
-                              'name': name,
+                              'id': widget.product['id'],
+                              'name': widget.product['name'],
                               'price': price,
                               'quantity': selectedQty,
-                              'image': image,
+                              'imageUrl': image,
+                              'category': widget.product['category'],
+                              'originalPrice': widget.product['originalPrice'],
                             }],
-                            isOnlineOrder: true,
                           ),
                         ),
                       );

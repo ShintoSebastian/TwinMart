@@ -183,7 +183,6 @@ class ManageCategoriesPage extends StatelessWidget {
                               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                                 return const Center(child: Text("No categories found", style: TextStyle(color: Colors.blueGrey, fontSize: 16)));
                               }
-
                               final docs = snapshot.data!.docs;
 
                               return ListView.separated(
@@ -198,25 +197,42 @@ class ManageCategoriesPage extends StatelessWidget {
                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
                                     child: Row(
                                       children: [
-                                        Expanded(flex: 2, child: Text(data['name'] ?? "", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                        if (!isMobile)
-                                          Expanded(flex: 3, child: Text(data['description'] ?? "", style: const TextStyle(color: Colors.blueGrey, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                         Expanded(
+                                          flex: 3, 
+                                          child: Text(
+                                            data['name'] ?? "", 
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), 
+                                            maxLines: 1, 
+                                            overflow: TextOverflow.ellipsis
+                                          )
+                                        ),
+                                        if (!isMobile)
+                                          Expanded(
+                                            flex: 4, 
+                                            child: Text(
+                                              data['description'] ?? "", 
+                                              style: const TextStyle(color: Colors.blueGrey, fontSize: 13), 
+                                              maxLines: 1, 
+                                              overflow: TextOverflow.ellipsis
+                                            )
+                                          ),
+                                        Expanded(
+                                          flex: 1,
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.end,
                                             children: [
                                               IconButton(
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
-                                                icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
-                                                onPressed: () => _showCategoryDialog(context, doc: doc), // Trigger edit
+                                                icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 22),
+                                                onPressed: () => _showCategoryDialog(context, doc: doc),
                                               ),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 12),
                                               IconButton(
                                                 padding: EdgeInsets.zero,
                                                 constraints: const BoxConstraints(),
-                                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                                onPressed: () => _showDeleteDialog(context, doc.id), // Trigger delete
+                                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                                                onPressed: () => _showDeleteDialog(context, doc.id),
                                               ),
                                             ],
                                           ),
