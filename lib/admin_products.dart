@@ -283,14 +283,14 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
               )
             : null,
           body: Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 8.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 24.0 : 24.0, vertical: isMobile ? 12.0 : 24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!isMobile)
-                  const Text("Products", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                  const Text("Products", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 
                 isMobile 
                   ? Column(
@@ -303,12 +303,12 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                   : Row(
                       children: [
                         Expanded(child: _buildSearchBar(cardDark, "Search products...")),
-                        const SizedBox(width: 24),
+                        const SizedBox(width: 16),
                         _buildMainAddButton(context, isMobile),
                       ],
                     ),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 
                 Expanded(
                   child: Container(
@@ -320,13 +320,22 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                     child: Column(
                       children: [
                         Padding(
-                          padding: EdgeInsets.all(isMobile ? 8.0 : 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: isMobile ? 12.0 : 24.0),
                           child: Row(
+                            mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                             children: [
-                              Expanded(flex: isMobile ? 4 : 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              Expanded(flex: isMobile ? 2 : 1, child: Text("Price", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              if (!isMobile) const Expanded(child: Text("Category", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              Expanded(flex: isMobile ? 2 : 1, child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              if (isMobile)
+                                SizedBox(width: 85, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
+                              else
+                                Expanded(child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              
+                              const SizedBox(width: 8), // Little gap between Name and Price
+                              
+                              SizedBox(width: isMobile ? 55 : 100, child: Text("Price", textAlign: TextAlign.start, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              
+                              if (!isMobile) const SizedBox(width: 120, child: Text("Category", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              
+                              SizedBox(width: isMobile ? 65 : 100, child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -346,73 +355,93 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                                   final doc = docs[index];
                                   final data = doc.data() as Map<String, dynamic>;
                                   return Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 16),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: isMobile ? 3 : 2, 
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                data['name'] ?? "", 
-                                                style: TextStyle(color: Colors.white, fontSize: isMobile ? 14 : 15, fontWeight: FontWeight.bold), 
-                                                maxLines: 1, 
-                                                overflow: TextOverflow.ellipsis
+                                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 12),
+                                      child: Row(
+                                        mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
+                                        children: [
+                                          if (isMobile)
+                                            SizedBox(
+                                              width: 85,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    data['name'] ?? "", 
+                                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), 
+                                                    maxLines: 1, 
+                                                    overflow: TextOverflow.ellipsis
+                                                  ),
+                                                  Text(
+                                                    data['category'] ?? "General", 
+                                                    style: const TextStyle(color: Colors.blueGrey, fontSize: 8),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
                                               ),
-                                              if (isMobile)
-                                                Text(
-                                                  data['category'] ?? "General", 
-                                                  style: const TextStyle(color: Colors.blueGrey, fontSize: 11),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                            ],
-                                          )
-                                        ),
-                                        Expanded(
-                                          flex: 1, 
-                                          child: Text(
-                                            "₹${data['price']}", 
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(color: const Color(0xFF10B981), fontSize: isMobile ? 13 : 14, fontWeight: FontWeight.bold), 
-                                            maxLines: 1, 
-                                            overflow: TextOverflow.ellipsis
-                                          )
-                                        ),
-                                        if (!isMobile) 
-                                          Expanded(
+                                            )
+                                          else
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    data['name'] ?? "", 
+                                                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), 
+                                                    maxLines: 1, 
+                                                    overflow: TextOverflow.ellipsis
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          
+                                          const SizedBox(width: 8), // Little gap between Name and Price
+                                          
+                                          SizedBox(
+                                            width: isMobile ? 55 : 100, 
                                             child: Text(
-                                              data['category'] ?? "General", 
-                                              style: const TextStyle(color: Colors.blueGrey), 
+                                              "₹${data['price']}", 
+                                              textAlign: TextAlign.start,
+                                              style: TextStyle(color: const Color(0xFF10B981), fontSize: isMobile ? 11 : 13, fontWeight: FontWeight.bold), 
                                               maxLines: 1, 
                                               overflow: TextOverflow.ellipsis
                                             )
                                           ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: [
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 20 : 22),
-                                                onPressed: () => _showProductDialog(context, doc: doc),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 20 : 22),
-                                                onPressed: () => _showDeleteConfirmation(context, doc.id),
-                                              ),
-                                            ],
+                                          
+                                          if (!isMobile) 
+                                            const SizedBox(
+                                              width: 120,
+                                              child: Text(
+                                                "General", 
+                                                style: TextStyle(color: Colors.blueGrey, fontSize: 12), 
+                                                maxLines: 1, 
+                                                overflow: TextOverflow.ellipsis
+                                              )
+                                            ),
+                                          
+                                          SizedBox(
+                                            width: isMobile ? 65 : 100,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.end,
+                                              children: [
+                                                IconButton(
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
+                                                  icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 16 : 22),
+                                                  onPressed: () => _showProductDialog(context, doc: doc),
+                                                ),
+                                                IconButton(
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
+                                                  icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 16 : 22),
+                                                  onPressed: () => _showDeleteConfirmation(context, doc.id),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                        ],
+                                      ),
+                                    );
                                 },
                               );
                             },
@@ -481,7 +510,7 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
 
   Widget _buildSearchBar(Color cardDark, String hint) {
     return Container(
-      height: 50,
+      height: 44,
       decoration: BoxDecoration(
         color: cardDark,
         borderRadius: BorderRadius.circular(12),
@@ -540,7 +569,7 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
   Widget _buildGradientButton(BuildContext context, String text, {bool isMobile = false, bool hasIcon = false}) {
     return Container(
       width: isMobile ? double.infinity : null,
-      height: 50,
+      height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(

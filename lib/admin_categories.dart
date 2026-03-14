@@ -121,7 +121,7 @@ class ManageCategoriesPage extends StatelessWidget {
               )
             : null,
           body: Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 8.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 24.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,21 +130,26 @@ class ManageCategoriesPage extends StatelessWidget {
                 
                 const SizedBox(height: 32),
                 
-                isMobile 
-                  ? Column(
-                      children: [
-                        _buildSearchBar(cardDark, "Search categories..."),
-                        const SizedBox(height: 16),
-                        _buildMainAddButton(context, isMobile),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(child: _buildSearchBar(cardDark, "Search categories...")),
-                        const SizedBox(width: 24),
-                        _buildMainAddButton(context, isMobile),
-                      ],
-                    ),
+                Center(
+                  child: SizedBox(
+                    width: isMobile ? 213 : double.infinity,
+                    child: isMobile 
+                      ? Column(
+                          children: [
+                            _buildSearchBar(cardDark, "Search categories..."),
+                            const SizedBox(height: 16),
+                            _buildMainAddButton(context, isMobile),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: _buildSearchBar(cardDark, "Search categories...")),
+                            const SizedBox(width: 24),
+                            _buildMainAddButton(context, isMobile),
+                          ],
+                        ),
+                  ),
+                ),
                 
                 const SizedBox(height: 32),
                 
@@ -158,13 +163,21 @@ class ManageCategoriesPage extends StatelessWidget {
                     child: Column(
                       children: [
                         Padding(
-                          padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: isMobile ? 12.0 : 24.0),
                           child: Row(
+                            mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                             children: [
-                              const Expanded(flex: 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              if (isMobile)
+                                SizedBox(width: 140, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
+                              else
+                                const Expanded(flex: 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              
+                              if (isMobile) const SizedBox(width: 8), // Sync gap with Products table
+                              
                               if (!isMobile)
                                 const Expanded(flex: 3, child: Text("Description", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              const Expanded(child: Text("Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              
+                              SizedBox(width: isMobile ? 65 : 100, child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -194,52 +207,78 @@ class ManageCategoriesPage extends StatelessWidget {
                                   final data = doc.data() as Map<String, dynamic>;
 
                                   return Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 3, 
-                                          child: Text(
-                                            data['name'] ?? "", 
-                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), 
-                                            maxLines: 1, 
-                                            overflow: TextOverflow.ellipsis
-                                          )
-                                        ),
-                                        if (!isMobile)
-                                          Expanded(
-                                            flex: 4, 
-                                            child: Text(
-                                              data['description'] ?? "", 
-                                              style: const TextStyle(color: Colors.blueGrey, fontSize: 13), 
-                                              maxLines: 1, 
-                                              overflow: TextOverflow.ellipsis
+                                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
+                                      child: Row(
+                                        mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
+                                        children: [
+                                          if (isMobile)
+                                            SizedBox(
+                                              width: 140,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    data['name'] ?? "", 
+                                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11), 
+                                                    maxLines: 1, 
+                                                    overflow: TextOverflow.ellipsis
+                                                  ),
+                                                  const Text(
+                                                    "General Category", 
+                                                    style: TextStyle(color: Colors.blueGrey, fontSize: 8),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
                                             )
+                                          else
+                                            Expanded(
+                                              flex: 3, 
+                                              child: Text(
+                                                data['name'] ?? "", 
+                                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), 
+                                                maxLines: 1, 
+                                                overflow: TextOverflow.ellipsis
+                                              )
+                                            ),
+                                          
+                                          if (isMobile) const SizedBox(width: 8), // Sync gap with Products table
+                                          
+                                          if (!isMobile)
+                                            Expanded(
+                                              flex: 4, 
+                                              child: Text(
+                                                data['description'] ?? "", 
+                                                style: const TextStyle(color: Colors.blueGrey, fontSize: 13), 
+                                                maxLines: 1, 
+                                                overflow: TextOverflow.ellipsis
+                                              )
+                                            ),
+                                          
+                                          SizedBox(
+                                            width: isMobile ? 65 : 100,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.end,
+                                              children: [
+                                                IconButton(
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
+                                                  icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 18 : 22),
+                                                  onPressed: () => _showCategoryDialog(context, doc: doc),
+                                                ),
+                                                IconButton(
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
+                                                  icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 18 : 22),
+                                                  onPressed: () => _showDeleteDialog(context, doc.id),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: [
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 22),
-                                                onPressed: () => _showCategoryDialog(context, doc: doc),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(),
-                                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
-                                                onPressed: () => _showDeleteDialog(context, doc.id),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                        ],
+                                      ),
+                                    );
                                 },
                               );
                             },
