@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 import 'package:twinmart_app/e_receipt_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui' as ui;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class PaymentMethodsScreen extends StatefulWidget {
   final double amount;
@@ -26,6 +28,41 @@ class PaymentMethodsScreen extends StatefulWidget {
 class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   int _selectedMethodIndex = -1;
   bool _isLoading = false;
+  late Razorpay _razorpay;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    debugPrint("✅ Razorpay SUCCESS: ${response.paymentId}");
+    _executeFirebaseTransaction("TXN-${DateTime.now().millisecondsSinceEpoch}");
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    debugPrint("🔥 Razorpay ERROR: ${response.code} - ${response.message}");
+    if (mounted) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment Cancelled or Failed."), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    debugPrint("🏦 External Wallet: ${response.walletName}");
+  }
 
   Future<void> _processPayment() async {
     setState(() => _isLoading = true);
@@ -39,11 +76,42 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       return;
     }
 
+    if (_selectedMethodIndex == 3 || _selectedMethodIndex == -1) {
+      // Cash on Delivery
+      _executeFirebaseTransaction("TXN-${DateTime.now().millisecondsSinceEpoch}");
+    } else {
+      // Razorpay Checkout
+      var options = {
+        'key': 'rzp_test_YourTestKey', // ❗ Replace with your test or live Razorpay key
+        'amount': (widget.amount * 100).toInt(), // amount in paise
+        'name': 'TwinMart',
+        'description': 'Store Purchase',
+        'prefill': {
+          'contact': '9876543210', // You can dynamically get user phone if available
+          'email': user.email ?? 'dummy@twinmart.com'
+        }
+      };
+      
+      try {
+        _razorpay.open(options);
+      } catch (e) {
+        debugPrint('🔥 Error starting Razorpay: $e');
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _executeFirebaseTransaction(String transactionId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final budgetRef = userRef.collection('budget').doc('settings');
 
     try {
-      String transactionId = "TXN-${DateTime.now().millisecondsSinceEpoch}";
       
       debugPrint("🚀 Starting Payment Transaction: $transactionId");
       await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -126,6 +194,28 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       });
       debugPrint("✅ Transaction Complete");
 
+      // Send automatic email receipt in the background
+      _sendEmailReceipt(transactionId);
+
+      // Show the feedback popup (SnackBar) that the user requested
+      if (mounted) {
+        final String userEmail = user.email ?? "your email";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.email_outlined, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text("Sending e-receipt to $userEmail...")),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1DB98A),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       if (!mounted) return;
       // Show QR exit pass only for in-store barcode purchases.
       // Online/shop orders just show a simple success confirmation.
@@ -147,41 +237,62 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     }
   }
 
-  // ✅ Function to simulate/trigger email receipt
+  // ✅ Function to trigger automatic server-side email receipt via Firebase
+  // ✅ Function to trigger automatic background email receipt via EmailJS (FREE Tier)
   Future<void> _sendEmailReceipt(String txnId) async {
     final user = FirebaseAuth.instance.currentUser;
-    final email = user?.email;
-    if (email == null) return;
+    final userEmail = user?.email;
+    if (userEmail == null) return;
 
-    final String subject = "Your TwinMart Order Confirmation - $txnId";
-    final String body = "Hi ${user?.displayName ?? 'Customer'},\n\n"
-        "Thank you for shopping with TwinMart! Your order has been placed successfully.\n\n"
-        "Order Summary:\n"
-        "--------------------------\n"
-        "Order ID: $txnId\n"
-        "Total Amount: ₹${widget.amount}\n"
-        "Payment Method: ${_getPaymentMethodName(_selectedMethodIndex)}\n"
-        "Items: ${widget.items.length}\n"
-        "--------------------------\n\n"
-        "You can view your full e-receipt in the TwinMart app.\n\n"
-        "Happy Shopping!\n"
-        "Team TwinMart";
-
-    final Uri emailLaunchUri = Uri(
-      scheme: 'mailto',
-      path: email,
-      query: _encodeQueryParameters(<String, String>{
-        'subject': subject,
-        'body': body,
-      }),
-    );
-
+    // Fetch original username from Firestore (Signup uses 'name' key)
+    String userName = user?.displayName ?? 'Customer';
     try {
-      if (await canLaunchUrl(emailLaunchUri)) {
-        await launchUrl(emailLaunchUri);
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+      if (userDoc.exists && userDoc.data() != null && userDoc.data()!.containsKey('name')) {
+        userName = userDoc.data()!['name'];
+        if (userName.trim().isEmpty) userName = 'Customer';
       }
     } catch (e) {
-      debugPrint("Error launching email: $e");
+      debugPrint("🔥 Error fetching genuine user name: $e");
+    }
+
+    // --- SETUP YOUR EMAILJS KEYS HERE ---
+    const String serviceId = 'service_fvcp87z';  // Paste the Service ID you just got
+    const String templateId = 'template_g3jov3v'; // We will get this next
+    const String publicKey = 'Qn6OHFJGf6WRBiIir'; // We will get this next
+
+    // Format product names for the email receipt
+    final String productNames = widget.items
+        .map((item) => "${item['name']} (x${item['quantity'] ?? 1})")
+        .join(", ");
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'service_id': serviceId,
+          'template_id': templateId,
+          'user_id': publicKey,
+          'template_params': {
+            'to_email': userEmail,
+            'user_name': userName, // Sending the genuine name!
+            'order_id': txnId,
+            'total_amount': widget.amount.toString(),
+            'items_count': widget.items.length.toString(),
+            'product_names': productNames, // Sending product names to EmailJS
+            'payment_method': _getPaymentMethodName(_selectedMethodIndex),
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint("📧 EmailJS receipt sent successfully to $userEmail");
+      } else {
+        debugPrint("🔥 EmailJS Error: ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("🔥 Error sending EmailJS receipt: $e");
     }
   }
 
@@ -318,40 +429,20 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                   minimumSize: const Size(double.infinity, 48),
                   elevation: 0,
                 ),
-                onPressed: () async {
-                  // 1. Simulate a background process for sending email
-                  final String userEmail = FirebaseAuth.instance.currentUser?.email ?? "your gmail";
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          ),
-                          const SizedBox(width: 15),
-                          Text("Sending Receipt to $userEmail..."),
-                        ],
-                      ),
-                      backgroundColor: const Color(0xFF1DB98A),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-
-                  // 2. Trigger the local email composer as a backup/demo
-                  await _sendEmailReceipt(txnId);
-
-                  if (context.mounted) {
-                    Navigator.pop(context);       // Close dialog
-                    Navigator.pop(context, true); // Return to shopping
-                  }
+                onPressed: () {
+                  Navigator.pop(context);       // Close dialog
+                  Navigator.pop(context, true); // Return to shopping
                 },
                 child: const Text(
-                  "Done",
+                  "Continue Shopping",
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "E-receipt has been sent to your email",
+              style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withOpacity(0.8), fontWeight: FontWeight.w500),
             ),
           ],
         ),
