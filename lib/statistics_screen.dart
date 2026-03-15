@@ -20,12 +20,14 @@ class StatisticsScreen extends StatefulWidget {
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   String selectedPeriod = "Month";
+  String selectedType = "Offline"; // "Online" or "Offline"
   bool isLoading = true;
 
   double totalBudget = 5000.0;
   double totalSpent = 0.0;
   double onlineSpent = 0.0;
   double offlineSpent = 0.0;
+  double filteredSpent = 0.0;
   double firstBudgetOfMonth = 0.0;
   int editsThisMonth = 0;
 
@@ -64,7 +66,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Color _getCatColor(String cat) {
     String lower = cat.toLowerCase();
-    if (lower.contains("grocer")) return const Color(0xFF1DB98A);
+    if (lower.contains("grocer")) return Colors.red;
     if (lower.contains("food")) return Colors.orange;
     if (lower.contains("digit")) return Colors.teal;
     if (lower.contains("utilit")) return Colors.orangeAccent;
@@ -190,6 +192,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     double tempTotal = 0;
     double tempOnline = 0;
     double tempOffline = 0;
+    double filteredSpentTemp = 0;
     Map<String, double> tempCatMap = {};
     List<Map<String, dynamic>> tempRecent = [];
 
@@ -207,13 +210,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       if (!inPeriod) continue;
 
-      double amt = tx['amount'];
+      double amt = (tx['amount'] ?? 0.0).toDouble();
       tempTotal += amt;
-      if (tx['type'] == 'online') tempOnline += amt;
+      
+      String txType = (tx['type'] ?? 'offline').toString().toLowerCase();
+      if (txType == 'online') tempOnline += amt;
       else tempOffline += amt;
 
-      String cat = tx['category'];
+      // Filter by Online/Offline for the charts and recent list
+      if (selectedType.toLowerCase() != txType) continue;
+
+      String cat = (tx['category'] ?? 'Miscellaneous').toString();
       tempCatMap[cat] = (tempCatMap[cat] ?? 0.0) + amt;
+      filteredSpentTemp += amt;
 
       if (tempRecent.length < 5) {
         tempRecent.add(tx);
@@ -225,6 +234,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         totalSpent = tempTotal;
         onlineSpent = tempOnline;
         offlineSpent = tempOffline;
+        filteredSpent = filteredSpentTemp;
         categorySpending = tempCatMap;
         recentTransactions = tempRecent;
         isLoading = false;
@@ -766,6 +776,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       _buildTypeBreakdown(),
                       const SizedBox(height: 30),
                       _buildPeriodSelector(),
+                      const SizedBox(height: 15),
+                      _buildTypeSelector(),
                       const SizedBox(height: 25),
                       _buildCategoryChartCard(),
                       const SizedBox(height: 30),
@@ -856,9 +868,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildSpendingOverviewCard() {
-    double progress = totalBudget > 0 ? (offlineSpent / totalBudget).clamp(0.0, 1.0) : 0.0;
-    double remaining = totalBudget - offlineSpent;
-    bool isOverBudget = offlineSpent > totalBudget;
+    double progress = (totalBudget ?? 0) > 0 ? ((offlineSpent ?? 0.0) / totalBudget!).clamp(0.0, 1.0) : 0.0;
+    double remaining = (totalBudget ?? 0.0) - (offlineSpent ?? 0.0);
+    bool isOverBudget = (offlineSpent ?? 0.0) > (totalBudget ?? 0.0);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -873,7 +885,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('₹${offlineSpent.toStringAsFixed(0)}', 
+              Text('₹${(offlineSpent ?? 0.0).toStringAsFixed(0)}', 
                   style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isOverBudget ? Colors.redAccent : Theme.of(context).textTheme.bodyLarge?.color)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -885,9 +897,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Limit: ₹${totalBudget.toStringAsFixed(0)}', 
+              Text('Limit: ₹${(totalBudget ?? 0.0).toStringAsFixed(0)}', 
                   style: const TextStyle(color: Colors.grey)),
-              Text(isOverBudget ? 'Exceeded!' : 'Available: ₹${remaining.toStringAsFixed(0)}', 
+              Text(isOverBudget ? 'Exceeded!' : 'Available: ₹${(remaining ?? 0.0).toStringAsFixed(0)}', 
                   style: TextStyle(color: isOverBudget ? Colors.redAccent : Colors.grey, fontWeight: FontWeight.bold)),
             ],
           ),
@@ -953,7 +965,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildTypeBreakdown() {
-    double exceededAmt = offlineSpent > totalBudget ? offlineSpent - totalBudget : 0.0;
+    double exceededAmt = (offlineSpent ?? 0.0) > (totalBudget ?? 0.0) ? (offlineSpent ?? 0.0) - (totalBudget ?? 0.0) : 0.0;
     return Row(
       children: [
         Expanded(child: _typeCard("Online", onlineSpent, Icons.cloud_outlined, Colors.blue)),
@@ -979,7 +991,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 12),
           Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-          Text("₹${amount.toStringAsFixed(0)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("₹${(amount ?? 0.0).toStringAsFixed(0)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -1025,6 +1037,51 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
+  Widget _buildTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[200],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          _typeItem("Offline", Icons.storefront_outlined),
+          _typeItem("Online", Icons.cloud_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _typeItem(String title, IconData icon) {
+    bool isSelected = selectedType == title;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => selectedType = title);
+          _recalculateStatistics();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF1DB98A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF1DB98A).withOpacity(0.3), blurRadius: 10)] : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.grey),
+              const SizedBox(width: 8),
+              Text(title, style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategoryChartCard() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1044,13 +1101,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('₹${totalSpent.toStringAsFixed(0)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const Text('Total Spent', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                Text('₹${(filteredSpent ?? 0.0).toStringAsFixed(0)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text('$selectedType Spent', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 const SizedBox(height: 15),
                 ...(() {
                   final sortedEntries = categorySpending.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
                   return sortedEntries.map((entry) {
-                    final percent = totalSpent > 0 ? (entry.value / totalSpent * 100) : 0.0;
+                    final percent = filteredSpent > 0 ? (entry.value / filteredSpent * 100) : 0.0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
@@ -1058,7 +1115,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           Container(width: 10, height: 10, decoration: BoxDecoration(color: _getCatColor(entry.key), shape: BoxShape.circle)),
                           const SizedBox(width: 8),
                           Expanded(child: Text(entry.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-                          Text('₹${entry.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          Text('₹${(entry.value ?? 0.0).toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     );
@@ -1123,7 +1180,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ],
                 ),
               ),
-              Text('₹${tx['amount'].toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('₹${(tx['amount'] ?? 0.0).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
         );

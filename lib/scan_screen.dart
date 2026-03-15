@@ -75,6 +75,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    final now = DateTime.now();
     _transactionSubscription = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -84,6 +85,13 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver, Ti
       double total = 0.0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
+        // ✅ FIX: Only count transactions from the CURRENT MONTH
+        final timestamp = data['timestamp'] as Timestamp?;
+        if (timestamp != null) {
+          final date = timestamp.toDate();
+          if (date.month != now.month || date.year != now.year) continue;
+        }
+
         if ((data['type'] ?? 'offline') == 'offline') {
           final double price = (data['price'] ?? 0.0).toDouble();
           final int qty = (data['quantity'] ?? 1) as int;

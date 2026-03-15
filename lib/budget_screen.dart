@@ -62,7 +62,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   Color _getColorForCategory(String name) {
     String lower = name.toLowerCase();
-    if (lower.contains("grocer")) return const Color(0xFF1DB98A);
+    if (lower.contains("grocer")) return Colors.red;
     if (lower.contains("food")) return Colors.orange;
     if (lower.contains("digit")) return Colors.teal;
     if (lower.contains("utilit")) return Colors.orangeAccent;
@@ -126,6 +126,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    final now = DateTime.now();
     _transactionSubscription = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -137,6 +138,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+        
+        // ✅ FIX: Only count transactions from the CURRENT MONTH
+        final timestamp = data['timestamp'] as Timestamp?;
+        if (timestamp != null) {
+          final date = timestamp.toDate();
+          if (date.month != now.month || date.year != now.year) continue;
+        }
+
         // Only count offline scan transactions
         if ((data['type'] ?? 'offline') == 'offline') {
           final double price = (data['price'] ?? 0.0).toDouble();
@@ -144,10 +153,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
           final double lineTotal = price * qty;
           total += lineTotal;
 
-            final String cat = (data['category'] ?? 'Miscellaneous').toString();
-            catMap[cat] = (catMap[cat] ?? 0.0) + lineTotal;
-          }
+          final String cat = (data['category'] ?? 'Miscellaneous').toString();
+          catMap[cat] = (catMap[cat] ?? 0.0) + lineTotal;
         }
+      }
 
       if (mounted) {
         setState(() {

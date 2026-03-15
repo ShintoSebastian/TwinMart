@@ -8,6 +8,7 @@ import 'saved_addresses_screen.dart';
 import 'wishlist_screen.dart'; 
 import 'notifications_screen.dart'; 
 import 'help_support_screen.dart'; 
+import 'change_password_screen.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 import 'package:twinmart_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
@@ -57,31 +58,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // NEW: Password Change Logic (Sends Email)
-  Future<void> _handleChangePassword() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      try {
-        await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Reset link sent to ${user.email}"),
-              backgroundColor: twinGreen,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to send reset link. Try again later.")),
-          );
-        }
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +361,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.lock_reset_outlined,
             title: "Change Password",
             subtitle: "Send a reset link to your email",
-            onTap: _handleChangePassword,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+              );
+            },
           ),
 
           _settingsTile(

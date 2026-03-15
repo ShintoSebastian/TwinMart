@@ -8,6 +8,9 @@ import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:js' as js;
 
 class PaymentMethodsScreen extends StatefulWidget {
   final double amount;
@@ -79,24 +82,85 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     if (_selectedMethodIndex == 3 || _selectedMethodIndex == -1) {
       // Cash on Delivery
       _executeFirebaseTransaction("TXN-${DateTime.now().millisecondsSinceEpoch}");
+    } else if (kIsWeb) {
+      // ✅ WEB FIX: Use JS Bridge to avoid MissingPluginException
+      try {
+        debugPrint("🌐 Using Web JS Bridge for Razorpay...");
+        var options = {
+          'key': 'rzp_live_SRNY9I1iXz4BCU',
+          'amount': (widget.amount * 100).toInt(),
+          'name': 'TwinMart',
+          'description': 'Store Purchase',
+          'prefill': {
+            'contact': '9876543210',
+            'email': user.email ?? 'dummy@twinmart.com'
+          },
+          'capture': 1, // ✅ ADDED: Auto-capture payment immediately
+          'handler': js.allowInterop((response) {
+            // Convert JS response back to Dart
+            _handlePaymentSuccess(PaymentSuccessResponse(
+              response['razorpay_payment_id'],
+              response['razorpay_order_id'],
+              response['razorpay_signature'],
+              {}, // Add 4th argument: data
+            ));
+          }),
+          'modal': {
+            'ondismiss': js.allowInterop(() {
+              debugPrint("🚪 Razorpay Modal Dismissed");
+              if (mounted) setState(() => _isLoading = false);
+            }),
+            'onerror': js.allowInterop((err) {
+              debugPrint("🔥 Razorpay Modal Error: $err");
+              if (mounted) {
+                setState(() => _isLoading = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Payment Modal Error: $err"), backgroundColor: Colors.red),
+                );
+              }
+            }),
+          }
+        };
+
+        var rzp = js.JsObject(js.context['Razorpay'], [js.JsObject.jsify(options)]);
+        rzp.callMethod('open');
+      } catch (e) {
+        debugPrint("🔥 Web Payment Error: $e");
+        if (mounted) setState(() => _isLoading = false);
+      }
     } else {
-      // Razorpay Checkout
+      // Razorpay Checkout (Mobile/Desktop)
       var options = {
-        'key': 'rzp_test_YourTestKey', // ❗ Replace with your test or live Razorpay key
-        'amount': (widget.amount * 100).toInt(), // amount in paise
+        'key': 'rzp_live_SRNY9I1iXz4BCU', 
+        'amount': (widget.amount * 100).toInt(),
         'name': 'TwinMart',
         'description': 'Store Purchase',
         'prefill': {
-          'contact': '9876543210', // You can dynamically get user phone if available
+          'contact': '9876543210',
           'email': user.email ?? 'dummy@twinmart.com'
-        }
+        },
+        'capture': 1, // ✅ ADDED: Auto-capture payment immediately
       };
       
       try {
+        debugPrint("💎 Opening Razorpay Checkout...");
         _razorpay.open(options);
+        
+        // Safety Reset
+        Future.delayed(const Duration(seconds: 10), () {
+          if (mounted && _isLoading) {
+            setState(() => _isLoading = false);
+            debugPrint("⏳ Razorpay Timeout: Stopped buffering.");
+          }
+        });
       } catch (e) {
         debugPrint('🔥 Error starting Razorpay: $e');
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Could not open Razorpay: $e"), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -453,7 +517,6 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   @override
   Widget build(BuildContext context) {
     const Color twinGreen = Color(0xFF1DB98A);
-    const Color darkColor = Color(0xFF1C252E);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -463,92 +526,263 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             top: -100,
             left: -80,
             size: 280,
-            color: TwinMartTheme.brandGreen.withOpacity(0.15),
-          ),
-          TwinMartTheme.bgBlob(
-            bottom: 150,
-            right: -100,
-            size: 320,
-            color: TwinMartTheme.brandBlue.withOpacity(0.1),
+            color: TwinMartTheme.brandGreen.withOpacity(0.12),
           ),
           BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            filter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
             child: Column(
               children: [
                 _buildAppBar(context),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Payment Method",
-                            style: TextStyle(
-                                fontSize: 24, fontWeight: FontWeight.bold)),
-                        Text("Choose your preferred way to pay",
-                            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey)),
+                        const SizedBox(height: 10),
+                        // Total Amount Header
+                        _buildTotalAmountCard(context),
                         const SizedBox(height: 30),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: darkColor,
-                            borderRadius: BorderRadius.circular(20),
+
+                        // UPI Section
+                        _buildSectionHeader("UPI"),
+                        const SizedBox(height: 12),
+                        _buildPaymentOption(
+                          index: 1,
+                          title: "Pay via UPI",
+                          subtitle: "GPay, PhonePe, Paytm",
+                          trailingContent: Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/UPI-Logo-vector.svg/1200px-UPI-Logo-vector.svg.png',
+                            height: 12,
                           ),
-                          child: Column(
+                          infoAlert: "You will need to accept the request in your UPI app.",
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        // Another Methods Section
+                        _buildSectionHeader("Another payment method"),
+                        const SizedBox(height: 12),
+                        
+                        _buildPaymentOption(
+                          index: 0,
+                          title: "Credit or debit card",
+                          subtitle: "VISA, Mastercard, RuPay",
+                          trailingContent: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text("Total Amount", style: TextStyle(color: Colors.white70)),
-                              const SizedBox(height: 5),
-                              Text("₹${widget.amount.toInt()}", 
-                                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                              _cardIcon('visa'),
+                              const SizedBox(width: 4),
+                              _cardIcon('mastercard'),
+                              const SizedBox(width: 4),
+                              _cardIcon('rupay'),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 25),
-                        const Text("Payment Options", 
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 15),
                         
-                        _buildSelectableTile(0, "VISA Debit Card", "**** **** **** 4582", Icons.credit_card, twinGreen),
-                        _buildSelectableTile(1, "UPI", "shinto@okaxis", Icons.account_balance_wallet, twinGreen),
-                        _buildSelectableTile(2, "Net Banking", "HDFC Bank", Icons.account_balance, twinGreen),
+                        _buildPaymentOption(
+                          index: 2,
+                          title: "Net Banking",
+                          subtitle: "Choose from 50+ banks",
+                        ),
+
                         if (widget.isOnlineOrder)
-                          _buildSelectableTile(3, "Cash on Delivery", "Pay when you receive", Icons.payments_outlined, twinGreen),
+                          _buildPaymentOption(
+                            index: 3,
+                            title: "Cash on Delivery",
+                            subtitle: "Cash, UPI and Cards accepted.",
+                            infoAlert: "Pay when you receive your order.",
+                          ),
+                        
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, -5))],
-                  ),
-                  child: SafeArea(
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _selectedMethodIndex != -1 && !_isLoading 
-                            ? _processPayment 
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: twinGreen,
-                          disabledBackgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.grey[300],
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        ),
-                        child: _isLoading 
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text("Pay ₹${widget.amount.toInt()}", 
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ),
-                ),
+                _buildBottomAction(context, twinGreen),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTotalAmountCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Column(
+        children: [
+          Text("Payable Amount", 
+            style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("₹", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: TwinMartTheme.brandGreen, height: 1.5)),
+              Text("${widget.amount.toInt()}", 
+                style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+    );
+  }
+
+  Widget _buildPaymentOption({
+    required int index,
+    required String title,
+    required String subtitle,
+    Widget? trailingContent,
+    String? infoAlert,
+  }) {
+    bool isSelected = _selectedMethodIndex == index;
+    const Color brandGreen = Color(0xFF1DB98A);
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMethodIndex = index),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? brandGreen.withOpacity(0.05) : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? brandGreen : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? brandGreen : Colors.grey.withOpacity(0.5),
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: isSelected 
+                      ? Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: brandGreen))
+                      : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          if (trailingContent != null) ...[
+                            const SizedBox(width: 8),
+                            trailingContent,
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey.withOpacity(0.3)),
+              ],
+            ),
+            if (infoAlert != null && isSelected) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: brandGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 16, color: brandGreen),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(infoAlert, style: const TextStyle(fontSize: 12, color: brandGreen, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cardIcon(String type) {
+    String url = '';
+    if (type == 'visa') url = 'https://img.icons8.com/color/48/visa.png';
+    if (type == 'mastercard') url = 'https://img.icons8.com/color/48/mastercard.png';
+    if (type == 'rupay') url = 'https://img.icons8.com/color/48/rupay.png';
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      ),
+      child: Image.network(
+        url, 
+        height: 14, 
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(), // Hide if image fails
+      ),
+    );
+  }
+
+  Widget _buildBottomAction(BuildContext context, Color twinGreen) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _selectedMethodIndex != -1 && !_isLoading 
+                ? _processPayment 
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: twinGreen,
+              disabledBackgroundColor: Colors.grey[300],
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            ),
+            child: _isLoading 
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text("Use this payment method", 
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+          ),
+        ),
       ),
     );
   }
@@ -576,42 +810,4 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     );
   }
 
-  Widget _buildSelectableTile(int index, String title, String subtitle, IconData icon, Color activeColor) {
-    bool isSelected = _selectedMethodIndex == index;
-    
-    return GestureDetector(
-      onTap: () => setState(() => _selectedMethodIndex = index),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? activeColor : Colors.transparent, 
-            width: 2
-          ),
-          boxShadow: [
-            if (!isSelected) 
-              BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05), blurRadius: 8, offset: const Offset(0, 2))
-          ],
-        ),
-        child: ListTile(
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isSelected ? activeColor.withOpacity(0.1) : (Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey[100]),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: isSelected ? activeColor : (Theme.of(context).brightness == Brightness.dark ? Colors.white38 : Colors.grey)),
-          ),
-          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black) : Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.7))),
-          subtitle: Text(subtitle, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
-          trailing: isSelected 
-              ? Icon(Icons.check_circle, color: activeColor)
-              : const Icon(Icons.circle_outlined, color: Colors.grey),
-        ),
-      ),
-    );
-  }
 }
