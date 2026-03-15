@@ -756,31 +756,45 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   }
 
   Widget _buildBottomAction(BuildContext context, Color twinGreen) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isEnabled = _selectedMethodIndex != -1 && !_isLoading;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          )
+        ],
       ),
       child: SafeArea(
         child: SizedBox(
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: _selectedMethodIndex != -1 && !_isLoading 
-                ? _processPayment 
-                : null,
+            onPressed: isEnabled ? _processPayment : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: twinGreen,
-              disabledBackgroundColor: Colors.grey[300],
-              elevation: 0,
+              disabledBackgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200],
+              elevation: isEnabled ? 4 : 0,
+              shadowColor: twinGreen.withOpacity(0.4),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
             child: _isLoading 
                 ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text("Use this payment method", 
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                : Text(
+                    "Use this payment method", 
+                    style: TextStyle(
+                      color: isEnabled ? Colors.white : (isDark ? Colors.white38 : Colors.grey[500]),
+                      fontSize: 16, 
+                      fontWeight: FontWeight.w800
+                    ),
+                  ),
           ),
         ),
       ),

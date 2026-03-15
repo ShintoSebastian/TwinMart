@@ -9,6 +9,7 @@ class ManageCategoriesPage extends StatelessWidget {
     // Pre-fill controllers if 'doc' is provided (Edit mode)
     final nameController = TextEditingController(text: doc != null ? doc['name'] : "");
     final descController = TextEditingController(text: doc != null ? doc['description'] : "");
+    final urlController = TextEditingController(text: doc != null && (doc.data() as Map).containsKey('imageUrl') ? doc['imageUrl'] : "");
 
     showDialog(
       context: context,
@@ -36,6 +37,9 @@ class ManageCategoriesPage extends StatelessWidget {
                 children: [
                   _buildLabel("Name"),
                   _buildDialogTextField("Enter category name", nameController, isGreenBorder: true),
+
+                  _buildLabel("Category Icon/Image URL"),
+                  _buildDialogTextField("Paste image link here", urlController),
                   
                   _buildLabel("Description"),
                   _buildDialogTextField("Enter category description", descController, maxLines: 4),
@@ -57,6 +61,7 @@ class ManageCategoriesPage extends StatelessWidget {
                   final data = {
                     'name': nameController.text,
                     'description': descController.text,
+                    'imageUrl': urlController.text.trim(),
                     'timestamp': FieldValue.serverTimestamp(),
                   };
 
@@ -108,7 +113,7 @@ class ManageCategoriesPage extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        bool isMobile = constraints.maxWidth < 750;
+        bool isMobile = constraints.maxWidth < 800;
 
         return Scaffold(
           backgroundColor: Colors.transparent, 
@@ -121,7 +126,7 @@ class ManageCategoriesPage extends StatelessWidget {
               )
             : null,
           body: Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 24.0 : 32.0, vertical: isMobile ? 16.0 : 32.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 32.0, vertical: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,26 +135,21 @@ class ManageCategoriesPage extends StatelessWidget {
                 
                 const SizedBox(height: 32),
                 
-                Center(
-                  child: SizedBox(
-                    width: isMobile ? 213 : double.infinity,
-                    child: isMobile 
-                      ? Column(
-                          children: [
-                            _buildSearchBar(cardDark, "Search categories..."),
-                            const SizedBox(height: 16),
-                            _buildMainAddButton(context, isMobile),
-                          ],
-                        )
-                      : Row(
-                          children: [
-                            Expanded(child: _buildSearchBar(cardDark, "Search categories...")),
-                            const SizedBox(width: 24),
-                            _buildMainAddButton(context, isMobile),
-                          ],
-                        ),
-                  ),
-                ),
+                isMobile 
+                  ? Column(
+                      children: [
+                        _buildSearchBar(cardDark, "Search categories..."),
+                        const SizedBox(height: 16),
+                        _buildMainAddButton(context, isMobile),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: _buildSearchBar(cardDark, "Search categories...")),
+                        const SizedBox(width: 24),
+                        _buildMainAddButton(context, isMobile),
+                      ],
+                    ),
                 
                 const SizedBox(height: 32),
                 
@@ -162,22 +162,29 @@ class ManageCategoriesPage extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
+                        // --- TABLE HEADER ---
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: isMobile ? 12.0 : 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
                           child: Row(
-                            mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                             children: [
-                              if (isMobile)
-                                SizedBox(width: 140, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
-                              else
-                                const Expanded(flex: 2, child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              // Name
+                              Expanded(
+                                flex: isMobile ? 3 : 2, 
+                                child: Text("Name", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13))
+                              ),
                               
-                              if (isMobile) const SizedBox(width: 8), // Sync gap with Products table
-                              
+                              // Description (Desktop Only)
                               if (!isMobile)
-                                const Expanded(flex: 3, child: Text("Description", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                const Expanded(
+                                  flex: 3, 
+                                  child: Text("Description", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
+                                ),
                               
-                              SizedBox(width: isMobile ? 65 : 100, child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              // Actions
+                              Expanded(
+                                flex: 1, 
+                                child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13))
+                              ),
                             ],
                           ),
                         ),
@@ -207,47 +214,61 @@ class ManageCategoriesPage extends StatelessWidget {
                                   final data = doc.data() as Map<String, dynamic>;
 
                                   return Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
+                                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 12.0),
                                       child: Row(
-                                        mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                                         children: [
-                                          if (isMobile)
-                                            SizedBox(
-                                              width: 140,
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    data['name'] ?? "", 
-                                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11), 
-                                                    maxLines: 1, 
-                                                    overflow: TextOverflow.ellipsis
+                                          // Category Name & Info
+                                           Expanded(
+                                            flex: isMobile ? 3 : 2, 
+                                            child: Row(
+                                              children: [
+                                                if (data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(right: 12),
+                                                    child: ClipRRect(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      child: Image.network(
+                                                        data['imageUrl'],
+                                                        width: 32,
+                                                        height: 32,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (_, __, ___) => const Icon(Icons.category, color: Colors.blueGrey, size: 20),
+                                                      ),
+                                                    ),
+                                                  )
+                                                else
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(right: 12),
+                                                    child: Icon(Icons.category_outlined, color: Colors.blueGrey, size: 24),
                                                   ),
-                                                  const Text(
-                                                    "General Category", 
-                                                    style: TextStyle(color: Colors.blueGrey, fontSize: 8),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        data['name'] ?? "", 
+                                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: isMobile ? 12 : 15), 
+                                                        maxLines: 1, 
+                                                        overflow: TextOverflow.ellipsis
+                                                      ),
+                                                      if (isMobile)
+                                                        Text(
+                                                          data['description'] ?? "No description", 
+                                                          style: const TextStyle(color: Colors.blueGrey, fontSize: 9),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             )
-                                          else
-                                            Expanded(
-                                              flex: 3, 
-                                              child: Text(
-                                                data['name'] ?? "", 
-                                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), 
-                                                maxLines: 1, 
-                                                overflow: TextOverflow.ellipsis
-                                              )
-                                            ),
+                                          ),
                                           
-                                          if (isMobile) const SizedBox(width: 8), // Sync gap with Products table
-                                          
+                                          // Description (Desktop Only)
                                           if (!isMobile)
                                             Expanded(
-                                              flex: 4, 
+                                              flex: 3, 
                                               child: Text(
                                                 data['description'] ?? "", 
                                                 style: const TextStyle(color: Colors.blueGrey, fontSize: 13), 
@@ -256,23 +277,15 @@ class ManageCategoriesPage extends StatelessWidget {
                                               )
                                             ),
                                           
-                                          SizedBox(
-                                            width: isMobile ? 65 : 100,
+                                          // Actions
+                                          Expanded(
+                                            flex: 1,
                                             child: Row(
                                               mainAxisAlignment: MainAxisAlignment.end,
                                               children: [
-                                                IconButton(
-                                                  padding: EdgeInsets.zero,
-                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
-                                                  icon: Icon(Icons.edit_outlined, color: Colors.blueAccent, size: isMobile ? 18 : 22),
-                                                  onPressed: () => _showCategoryDialog(context, doc: doc),
-                                                ),
-                                                IconButton(
-                                                  padding: EdgeInsets.zero,
-                                                  constraints: BoxConstraints(minWidth: isMobile ? 24 : 40),
-                                                  icon: Icon(Icons.delete_outline, color: Colors.redAccent, size: isMobile ? 18 : 22),
-                                                  onPressed: () => _showDeleteDialog(context, doc.id),
-                                                ),
+                                                _actionBtn(Icons.edit_outlined, Colors.blueAccent, isMobile, () => _showCategoryDialog(context, doc: doc)),
+                                                const SizedBox(width: 8),
+                                                _actionBtn(Icons.delete_outline, Colors.redAccent, isMobile, () => _showDeleteDialog(context, doc.id)),
                                               ],
                                             ),
                                           ),
@@ -333,7 +346,7 @@ class ManageCategoriesPage extends StatelessWidget {
 
   Widget _buildSearchBar(Color cardDark, String hint) {
     return Container(
-      height: 50,
+      height: 48,
       decoration: BoxDecoration(
         color: cardDark,
         borderRadius: BorderRadius.circular(12),
@@ -362,7 +375,7 @@ class ManageCategoriesPage extends StatelessWidget {
   Widget _buildGradientButton(BuildContext context, String text, {bool isMobile = false, bool hasIcon = false}) {
     return Container(
       width: isMobile ? double.infinity : null,
-      height: 50,
+      height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -380,6 +393,22 @@ class ManageCategoriesPage extends StatelessWidget {
           if (hasIcon) const SizedBox(width: 8),
           Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ],
+      ),
+    );
+  }
+
+  Widget _actionBtn(IconData icon, Color color, bool isMobile, VoidCallback onPressed) {
+    return Container(
+      width: isMobile ? 32 : 38,
+      height: isMobile ? 32 : 38,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: color, size: isMobile ? 18 : 20),
+        onPressed: onPressed,
       ),
     );
   }

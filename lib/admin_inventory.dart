@@ -49,55 +49,38 @@ class ManageInventoryPage extends StatelessWidget {
                       children: [
                         // --- TABLE HEADER ---
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: isMobile ? 12.0 : 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
                           child: Row(
-                            mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                             children: [
-                              if (isMobile)
-                                SizedBox(width: 130, child: Text("Product", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
-                              else
-                                const Expanded(flex: 2, child: Text("Product", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))),
-                              
-                              if (isMobile) const SizedBox(width: 4),
-                              
-                              SizedBox(
-                                width: isMobile ? 35 : 100, 
-                                child: Text(
-                                  "Qty", 
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13),
-                                )
+                              // Product
+                              Expanded(
+                                flex: isMobile ? 3 : 4, 
+                                child: Text("Product", style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
                               ),
                               
-                              if (isMobile) const SizedBox(width: 4),
-                              
-                              SizedBox(
-                                width: isMobile ? 35 : 100, 
-                                child: Text(
-                                  "Min", 
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13),
-                                )
+                              // Qty
+                              const Expanded(
+                                flex: 1, 
+                                child: Text("Qty", textAlign: TextAlign.center, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
                               ),
                               
+                              // Min
+                              const Expanded(
+                                flex: 1, 
+                                child: Text("Min", textAlign: TextAlign.center, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
+                              ),
+                              
+                              // Status (Desktop Only)
                               if (!isMobile)
                                 const Expanded(
-                                  child: Text(
-                                    "Status", 
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13),
-                                  )
+                                  flex: 1,
+                                  child: Text("Status", textAlign: TextAlign.center, style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
                                 ),
                               
-                              if (isMobile) const SizedBox(width: 4),
-                              
-                              SizedBox(
-                                width: isMobile ? 65 : 100, 
-                                child: Text(
-                                  isMobile ? "" : "Actions", 
-                                  textAlign: TextAlign.right,
-                                  style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 13),
-                                )
+                              // Actions
+                              Expanded(
+                                flex: isMobile ? 2 : 2, 
+                                child: Text(isMobile ? "" : "Actions", textAlign: TextAlign.right, style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold, fontSize: 13))
                               ),
                             ],
                           ),
@@ -146,109 +129,77 @@ class ManageInventoryPage extends StatelessWidget {
                                    }
 
                                    return Padding(
-                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 16.0),
+                                     padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 24.0, vertical: 12.0),
                                      child: Row(
-                                       mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                                        children: [
-                                         if (isMobile)
-                                           SizedBox(
-                                             width: 130,
-                                             child: Column(
-                                               crossAxisAlignment: CrossAxisAlignment.start,
-                                               children: [
-                                                 Text(
-                                                   data['name'] ?? "", 
-                                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11), 
-                                                   maxLines: 1, 
-                                                   overflow: TextOverflow.ellipsis
-                                                 ),
-                                                 Text(
-                                                   data['category'] ?? "General", 
-                                                   style: const TextStyle(color: Colors.blueGrey, fontSize: 8),
-                                                   maxLines: 1,
-                                                   overflow: TextOverflow.ellipsis,
-                                                 ),
-                                               ],
-                                             ),
-                                           )
-                                         else
-                                           Expanded(
-                                             flex: isMobile ? 3 : 2,
-                                             child: Column(
-                                               crossAxisAlignment: CrossAxisAlignment.start,
-                                               children: [
-                                                 Text(
-                                                   data['name'] ?? "", 
-                                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: isMobile ? 14 : 15), 
-                                                   maxLines: 1, 
-                                                   overflow: TextOverflow.ellipsis
-                                                 ),
-                                                 Text(
-                                                   data['category'] ?? "General", 
-                                                   style: const TextStyle(color: Colors.blueGrey, fontSize: 11),
-                                                   maxLines: 1,
-                                                   overflow: TextOverflow.ellipsis,
-                                                 ),
-                                               ],
-                                             ),
+                                         // Product Name & Category
+                                         Expanded(
+                                           flex: isMobile ? 3 : 4,
+                                           child: Column(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             children: [
+                                               Text(
+                                                 data['name'] ?? "", 
+                                                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: isMobile ? 12 : 14), 
+                                                 maxLines: 1, 
+                                                 overflow: TextOverflow.ellipsis
+                                               ),
+                                               Text(
+                                                 data['category'] ?? "General", 
+                                                 style: TextStyle(color: Colors.blueGrey, fontSize: isMobile ? 9 : 11),
+                                                 maxLines: 1,
+                                                 overflow: TextOverflow.ellipsis,
+                                               ),
+                                             ],
                                            ),
+                                         ),
                                          
-                                         if (isMobile) const SizedBox(width: 4),
-                                         
-                                         SizedBox(
-                                           width: isMobile ? 35 : 100,
+                                         // Qty
+                                         Expanded(
+                                           flex: 1,
                                            child: Text(
                                              stock.toString(), 
                                              textAlign: TextAlign.center, 
-                                             style: TextStyle(color: twinGreen, fontWeight: FontWeight.bold, fontSize: isMobile ? 11 : 15)
+                                             style: TextStyle(color: twinGreen, fontWeight: FontWeight.bold, fontSize: isMobile ? 12 : 14)
                                            ),
                                          ),
                                          
-                                         if (isMobile) const SizedBox(width: 4),
-                                         
-                                         SizedBox(
-                                           width: isMobile ? 35 : 100,
+                                         // Min (Threshold)
+                                         Expanded(
+                                           flex: 1,
                                            child: Text(
                                              threshold.toString(), 
                                              textAlign: TextAlign.center, 
-                                             style: TextStyle(color: Colors.blueGrey, fontSize: isMobile ? 10 : 13)
+                                             style: TextStyle(color: Colors.blueGrey, fontSize: isMobile ? 11 : 13)
                                            ),
                                          ),
                                          
+                                         // Status (Desktop Only)
                                          if (!isMobile)
                                            Expanded(
+                                             flex: 1,
                                              child: Center(
                                                child: Container(
-                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                 decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                 decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
                                                  child: Text(statusText, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
                                                ),
                                              ),
                                            ),
                                          
-                                         if (isMobile) const SizedBox(width: 4),
-                                         
-                                         SizedBox(
-                                           width: isMobile ? 65 : 100,
+                                         // Actions
+                                         Expanded(
+                                           flex: isMobile ? 2 : 2,
                                            child: Row(
                                              mainAxisAlignment: MainAxisAlignment.end,
                                              children: [
-                                               IconButton(
-                                                 padding: EdgeInsets.zero,
-                                                 constraints: BoxConstraints(minWidth: isMobile ? 24 : 40, minHeight: isMobile ? 32 : 40),
-                                                 icon: Icon(Icons.remove_circle_outline, color: Colors.blueGrey, size: isMobile ? 16 : 22),
-                                                 onPressed: () {
-                                                   FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock - 1});
-                                                 },
-                                               ),
-                                               IconButton(
-                                                 padding: EdgeInsets.zero,
-                                                 constraints: BoxConstraints(minWidth: isMobile ? 24 : 40, minHeight: isMobile ? 32 : 40),
-                                                 icon: Icon(Icons.add_circle_outline, color: const Color(0xFF10B981), size: isMobile ? 16 : 22),
-                                                 onPressed: () {
-                                                   FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock + 1});
-                                                 },
-                                               ),
+                                               _actionBtn(Icons.remove_circle_outline, Colors.blueGrey, isMobile, () {
+                                                 FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock - 1});
+                                               }),
+                                               const SizedBox(width: 4),
+                                               _actionBtn(Icons.add_circle_outline, twinGreen, isMobile, () {
+                                                 FirebaseFirestore.instance.collection('products').doc(docId).update({'stock': stock + 1});
+                                               }),
                                              ],
                                            ),
                                          ),
@@ -293,5 +244,20 @@ class ManageInventoryPage extends StatelessWidget {
       ),
     );
   }
-}
 
+  Widget _actionBtn(IconData icon, Color color, bool isMobile, VoidCallback onPressed) {
+    return Container(
+      width: isMobile ? 28 : 34,
+      height: isMobile ? 28 : 34,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: color, size: isMobile ? 16 : 18),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}

@@ -23,6 +23,7 @@ class OrderSummaryScreen extends StatefulWidget {
 class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   final Color twinGreen = TwinMartTheme.brandGreen;
   final Color twinTeal = TwinMartTheme.brandTeal;
+  bool _hasAddress = false;
 
   @override
   void initState() {
@@ -189,6 +190,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     final addrData = addressSnapshot.data!.docs.first.data() as Map<String, dynamic>;
                     fullAddress = addrData['fullAddress'] ?? "";
                     addressType = (addrData['type'] ?? "HOME").toString().toUpperCase();
+                    
+                    // Update address status for payment button
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted && !_hasAddress) {
+                        setState(() => _hasAddress = true);
+                      }
+                    });
+                  } else {
+                    // Reset if no addresses found
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted && _hasAddress) {
+                        setState(() => _hasAddress = false);
+                      }
+                    });
                   }
 
                   return Column(
@@ -488,6 +503,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               width: 160,
               child: ElevatedButton(
                 onPressed: () async {
+                  if (!_hasAddress) {
+                    _showNoAddressDialog();
+                    return;
+                  }
+
                   final bool? success = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(
@@ -516,6 +536,81 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showNoAddressDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_off_rounded, color: Colors.orange, size: 40),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Missing Address",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Please add a delivery address to proceed with the payment.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: twinGreen,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SavedAddressesScreen()),
+                        );
+                      },
+                      child: const Text(
+                        "Add Address Now",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

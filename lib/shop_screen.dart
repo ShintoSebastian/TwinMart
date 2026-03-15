@@ -260,6 +260,7 @@ class _ShopScreenState extends State<ShopScreen> {
             final d = doc.data() as Map<String, dynamic>;
             String name = d['name'] ?? "Category";
             String emoji = d['emoji'] ?? "🛍️";
+            String? imageUrl = d['imageUrl'];
 
             // Mapping meaningful emojis to names if default emoji is used
             if (emoji == "🛍️") {
@@ -285,7 +286,8 @@ class _ShopScreenState extends State<ShopScreen> {
 
             return {
               "name": name,
-              "emoji": emoji
+              "emoji": emoji,
+              "imageUrl": imageUrl
             };
           })
         ];
@@ -316,8 +318,26 @@ class _ShopScreenState extends State<ShopScreen> {
                   ),
                   child: Row(
                     children: [
-                      Text(c['emoji'] as String, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 8),
+                      if (c['imageUrl'] != null && (c['imageUrl'] as String).isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.network(
+                              c['imageUrl'] as String,
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => 
+                                  Text(c['emoji'] as String, style: const TextStyle(fontSize: 16)),
+                            ),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Text(c['emoji'] as String, style: const TextStyle(fontSize: 16)),
+                        ),
                       Text(
                         c['name'] as String,
                         style: TextStyle(

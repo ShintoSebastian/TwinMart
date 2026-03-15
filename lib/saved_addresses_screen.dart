@@ -37,11 +37,14 @@ class SavedAddressesScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 TextField(
                   controller: addressController,
+                  style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                   decoration: InputDecoration(
                     hintText: "Flat/House No, Building, Street, Area",
                     hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                     filled: true,
-                    fillColor: Colors.grey.shade100,
+                    fillColor: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white.withOpacity(0.05) 
+                        : Colors.grey.shade100,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -54,11 +57,11 @@ class SavedAddressesScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _typeChip("Home", addressType == 'Home', green, () {
+                    _typeChip(context, "Home", addressType == 'Home', green, () {
                       setModalState(() => addressType = 'Home');
                     }),
                     const SizedBox(width: 10),
-                    _typeChip("Work", addressType == 'Work', green, () {
+                    _typeChip(context, "Work", addressType == 'Work', green, () {
                       setModalState(() => addressType = 'Work');
                     }),
                   ],
@@ -103,19 +106,20 @@ class SavedAddressesScreen extends StatelessWidget {
     );
   }
 
-  Widget _typeChip(String label, bool isSelected, Color green, VoidCallback onTap) {
+  Widget _typeChip(BuildContext context, String label, bool isSelected, Color green, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? green : Colors.grey.shade200,
+          color: isSelected ? green : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
+            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
             fontWeight: FontWeight.bold,
           ),
         ),

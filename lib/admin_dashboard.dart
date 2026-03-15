@@ -97,7 +97,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               
               // Content Area
               Expanded(
-                child: _getSelectedPage(isMobile),
+                child: _getSelectedPage(isMobile, constraints),
               ),
             ],
           ),
@@ -107,9 +107,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // --- NAVIGATION LOGIC ---
-  Widget _getSelectedPage(bool isMobile) {
+  Widget _getSelectedPage(bool isMobile, BoxConstraints constraints) {
     switch (_selectedIndex) {
-      case 0: return _buildDashboardHome(isMobile);
+      case 0: return _buildDashboardHome(isMobile, constraints);
       case 1: return const ManageProductsPage();
       case 2: return const ManageCategoriesPage();
       case 3: return const ManageInventoryPage();
@@ -154,7 +154,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // --- DASHBOARD HOME (THE ADAPTABLE GRID) ---
-  Widget _buildDashboardHome(bool isMobile) {
+  Widget _buildDashboardHome(bool isMobile, BoxConstraints constraints) {
     return SingleChildScrollView(
       padding: EdgeInsets.all(isMobile ? 16 : 32),
       child: Column(
@@ -167,10 +167,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: isMobile ? 1 : 3,
+            crossAxisCount: constraints.maxWidth < 600 ? 1 : (constraints.maxWidth < 1100 ? 2 : 3),
             crossAxisSpacing: 20,
             mainAxisSpacing: 20,
-            childAspectRatio: isMobile ? 2.5 : 2.1,
+            childAspectRatio: constraints.maxWidth < 600 ? 2.5 : (constraints.maxWidth < 1100 ? 1.8 : 2.1),
             children: [
               // Total Products
               _buildStreamStatCard(
@@ -259,10 +259,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: isMobile ? 2 : 4,
+                  crossAxisCount: constraints.maxWidth < 600 ? 2 : (constraints.maxWidth < 1100 ? 3 : 4),
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
-                  childAspectRatio: isMobile ? 1.1 : 0.9,
+                  childAspectRatio: constraints.maxWidth < 600 ? 1.1 : 0.95,
                   children: [
                     _buildActionBtn("Manage Products", Icons.inventory_2, Colors.blue, () => setState(() => _selectedIndex = 1)),
                     _buildActionBtn("Manage Categories", Icons.category, Colors.purple, () => setState(() => _selectedIndex = 2)),
@@ -305,7 +305,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(color: cardDark, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -317,22 +317,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   Text(title, 
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                  const SizedBox(height: 8),
+                    style: const TextStyle(color: Colors.blueGrey, fontSize: 11)), // Slightly smaller font
+                  const SizedBox(height: 4), // Reduced gap
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(val, 
-                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)), // Slightly smaller font
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8), // Smaller icon container
               decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 24),
+              child: Icon(icon, color: color, size: 20), // Smaller icon
             ),
           ],
         ),
