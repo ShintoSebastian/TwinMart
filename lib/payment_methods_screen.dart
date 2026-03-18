@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
 import 'package:twinmart_app/e_receipt_screen.dart';
+import 'package:twinmart_app/invoice_service.dart';
 import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -298,8 +300,8 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     }
   }
 
-  // ✅ Function to trigger automatic server-side email receipt via Firebase
   // ✅ Function to trigger automatic background email receipt via EmailJS (FREE Tier)
+  // ✅ Includes HTML invoice table + PDF invoice link with FALLBACK if too large
   Future<void> _sendEmailReceipt(String txnId) async {
     final user = FirebaseAuth.instance.currentUser;
     final userEmail = user?.email;
@@ -318,16 +320,125 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     }
 
     // --- SETUP YOUR EMAILJS KEYS HERE ---
-    const String serviceId = 'service_fvcp87z';  // Paste the Service ID you just got
-    const String templateId = 'template_g3jov3v'; // We will get this next
-    const String publicKey = 'Qn6OHFJGf6WRBiIir'; // We will get this next
+    const String serviceId = 'service_fvcp87z';
+    const String templateId = 'template_g3jov3v';
+    const String publicKey = 'Qn6OHFJGf6WRBiIir';
 
-    // Format product names for the email receipt
+    // Format product names
     final String productNames = widget.items
         .map((item) => "${item['name']} (x${item['quantity'] ?? 1})")
         .join(", ");
 
+    final String orderDate = DateTime.now().toString().substring(0, 19);
+    final String paymentMethod = _getPaymentMethodName(_selectedMethodIndex);
+
+    // ──────────────────────────────────────────────
+    // Step 1: Generate PDF & upload to Firebase Storage (non-blocking)
+    // ──────────────────────────────────────────────
+    String invoicePdfLink = '';
     try {
+      debugPrint("📄 Generating PDF invoice...");
+      final pdfBytes = await InvoiceService.generateInvoicePdf(
+        orderId: txnId,
+        totalAmount: widget.amount,
+        items: widget.items,
+        paymentMethod: paymentMethod,
+        customerName: userName,
+        customerEmail: userEmail,
+      );
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('invoices')
+          .child(user!.uid)
+          .child('$txnId.pdf');
+
+      final uploadTask = await storageRef.putData(
+        pdfBytes,
+        SettableMetadata(contentType: 'application/pdf'),
+      ).timeout(const Duration(seconds: 10), onTimeout: () {
+        throw Exception("Firebase Storage upload timed out.");
+      });
+
+      invoicePdfLink = await uploadTask.ref.getDownloadURL().timeout(const Duration(seconds: 5));  
+      debugPrint("✅ Invoice PDF uploaded: $invoicePdfLink");
+    } catch (e) {
+      debugPrint("🔥 PDF generation/upload failed (email will still send): $e");
+    }
+
+    // ──────────────────────────────────────────────
+    // Step 2: Build the basic template params (always works)
+    // ──────────────────────────────────────────────
+    final Map<String, String> basicParams = {
+      'to_email': userEmail,
+      'user_name': userName,
+      'order_id': txnId,
+      'total_amount': widget.amount.toStringAsFixed(2),
+      'items_count': widget.items.length.toString(),
+      'product_names': productNames,
+      'payment_method': paymentMethod,
+      'order_date': orderDate,
+      'invoice_pdf_link': invoicePdfLink,
+    };
+
+    // ──────────────────────────────────────────────
+    // Step 3: Build the rich HTML content (might be too large)
+    // ──────────────────────────────────────────────
+    final StringBuffer invoiceRows = StringBuffer();
+    for (int i = 0; i < widget.items.length; i++) {
+      final item = widget.items[i];
+      final String name  = item['name'] ?? 'Item';
+      final int    qty   = (item['quantity'] ?? 1) as int;
+      final double price = (item['price'] ?? 0).toDouble();
+      final double lineTotal = price * qty;
+      final String bgColor = (i % 2 == 0) ? '#f9f9f9' : '#ffffff';
+
+      invoiceRows.write(
+        '<tr style="background-color:$bgColor;">'
+        '<td style="padding:10px 14px;border-bottom:1px solid #eee;font-size:14px;">${i + 1}</td>'
+        '<td style="padding:10px 14px;border-bottom:1px solid #eee;font-size:14px;">$name</td>'
+        '<td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:center;font-size:14px;">$qty</td>'
+        '<td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:right;font-size:14px;">Rs.${price.toStringAsFixed(2)}</td>'
+        '<td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:right;font-size:14px;font-weight:600;">Rs.${lineTotal.toStringAsFixed(2)}</td>'
+        '</tr>'
+      );
+    }
+
+    final String invoiceTable =
+      '<table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;margin-top:10px;">'
+      '<thead><tr style="background-color:#1DB98A;color:#fff;">'
+      '<th style="padding:12px 14px;text-align:left;font-size:13px;">#</th>'
+      '<th style="padding:12px 14px;text-align:left;font-size:13px;">Product</th>'
+      '<th style="padding:12px 14px;text-align:center;font-size:13px;">Qty</th>'
+      '<th style="padding:12px 14px;text-align:right;font-size:13px;">Unit Price</th>'
+      '<th style="padding:12px 14px;text-align:right;font-size:13px;">Total</th>'
+      '</tr></thead><tbody>$invoiceRows</tbody>'
+      '<tfoot><tr style="background-color:#1DB98A;color:#fff;">'
+      '<td colspan="4" style="padding:12px 14px;font-weight:bold;font-size:15px;">Grand Total</td>'
+      '<td style="padding:12px 14px;text-align:right;font-weight:bold;font-size:15px;">Rs.${widget.amount.toStringAsFixed(2)}</td>'
+      '</tr></tfoot></table>';
+
+    String invoiceButtonHtml = '';
+    if (invoicePdfLink.isNotEmpty) {
+      invoiceButtonHtml =
+        '<div style="text-align:center;margin-top:20px;margin-bottom:10px;">'
+        '<a href="$invoicePdfLink" target="_blank" style="display:inline-block;background-color:#1DB98A;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:bold;font-size:15px;font-family:Arial,sans-serif;">Download Invoice PDF</a>'
+        '</div>'
+        '<p style="text-align:center;font-size:11px;color:#999;font-family:Arial,sans-serif;margin-top:6px;">You can save this link to download your invoice anytime.</p>';
+    }
+
+    // ──────────────────────────────────────────────
+    // Step 4: TRY sending with full HTML, FALLBACK to basic if it fails
+    // ──────────────────────────────────────────────
+    bool sent = false;
+
+    // ATTEMPT 1: Full email with invoice table + PDF button
+    try {
+      debugPrint("📧 Attempt 1: Sending full email with invoice...");
+      final fullParams = Map<String, String>.from(basicParams);
+      fullParams['invoice_table'] = invoiceTable;
+      fullParams['invoice_button'] = invoiceButtonHtml;
+
       final response = await http.post(
         Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
         headers: {'Content-Type': 'application/json'},
@@ -335,25 +446,55 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
           'service_id': serviceId,
           'template_id': templateId,
           'user_id': publicKey,
-          'template_params': {
-            'to_email': userEmail,
-            'user_name': userName, // Sending the genuine name!
-            'order_id': txnId,
-            'total_amount': widget.amount.toString(),
-            'items_count': widget.items.length.toString(),
-            'product_names': productNames, // Sending product names to EmailJS
-            'payment_method': _getPaymentMethodName(_selectedMethodIndex),
-          },
+          'template_params': fullParams,
         }),
       );
 
       if (response.statusCode == 200) {
-        debugPrint("📧 EmailJS receipt sent successfully to $userEmail");
+        debugPrint("✅ Full email with invoice sent to $userEmail");
+        sent = true;
       } else {
-        debugPrint("🔥 EmailJS Error: ${response.body}");
+        debugPrint("🔥 Full email failed (${response.statusCode}): ${response.body}");
       }
     } catch (e) {
-      debugPrint("🔥 Error sending EmailJS receipt: $e");
+      debugPrint("🔥 Full email error: $e");
+    }
+
+    // ATTEMPT 2: Fallback — basic email WITHOUT large HTML (if attempt 1 failed)
+    if (!sent) {
+      try {
+        debugPrint("📧 Attempt 2: Sending basic email (fallback)...");
+        
+        // Add a simple text invoice link instead of HTML button
+        if (invoicePdfLink.isNotEmpty) {
+          basicParams['invoice_table'] = '<p><strong><a href="$invoicePdfLink">Click here to download your Invoice PDF</a></strong></p>';
+          basicParams['invoice_button'] = '';
+        }
+
+        final response = await http.post(
+          Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'service_id': serviceId,
+            'template_id': templateId,
+            'user_id': publicKey,
+            'template_params': basicParams,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint("✅ Fallback email sent to $userEmail");
+          sent = true;
+        } else {
+          debugPrint("🔥 Fallback email also failed (${response.statusCode}): ${response.body}");
+        }
+      } catch (e) {
+        debugPrint("🔥 Fallback email error: $e");
+      }
+    }
+
+    if (!sent) {
+      debugPrint("❌ All email attempts failed for txn: $txnId");
     }
   }
 
@@ -375,6 +516,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   }
 
   void _showExitQrDialog(String txnId) {
+    final user = FirebaseAuth.instance.currentUser;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -400,7 +542,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
               width: 220,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white, // QR must be on white
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.grey[200]!),
               ),
@@ -422,6 +564,32 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             ),
             const SizedBox(height: 10),
             Text("Txn: $txnId", style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey)),
+            const SizedBox(height: 16),
+            // ✅ Download Invoice Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: const Text("Download Invoice", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1DB98A),
+                  side: const BorderSide(color: Color(0xFF1DB98A), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () {
+                  InvoiceService.previewInvoice(
+                    context,
+                    orderId: txnId,
+                    totalAmount: widget.amount,
+                    items: widget.items,
+                    paymentMethod: _getPaymentMethodName(_selectedMethodIndex),
+                    customerName: user?.displayName ?? 'Customer',
+                    customerEmail: user?.email ?? '',
+                  );
+                },
+              ),
+            ),
           ],
         ),
         actions: [
@@ -443,6 +611,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   }
 
   void _showOrderSuccessDialog(String txnId) {
+    final user = FirebaseAuth.instance.currentUser;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -480,7 +649,33 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
               style: TextStyle(fontSize: 11, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6) ?? Colors.grey),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
+            // ✅ Download Invoice PDF Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                label: const Text("Download Invoice", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF1DB98A),
+                  side: const BorderSide(color: Color(0xFF1DB98A), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                onPressed: () {
+                  InvoiceService.previewInvoice(
+                    context,
+                    orderId: txnId,
+                    totalAmount: widget.amount,
+                    items: widget.items,
+                    paymentMethod: _getPaymentMethodName(_selectedMethodIndex),
+                    customerName: user?.displayName ?? 'Customer',
+                    customerEmail: user?.email ?? '',
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

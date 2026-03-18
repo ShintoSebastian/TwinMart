@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'package:twinmart_app/invoice_service.dart';
 import 'dart:ui' as ui;
 
 class EReceiptScreen extends StatelessWidget {
@@ -37,13 +38,30 @@ class EReceiptScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
-              // Logic to share receipt
+              InvoiceService.shareInvoice(
+                orderId: orderId,
+                totalAmount: amount,
+                items: items,
+                paymentMethod: paymentMethod,
+                customerName: 'Customer',
+                customerEmail: '',
+                orderDate: timestamp,
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.download_for_offline_outlined),
             onPressed: () {
-              // Logic to download as PDF
+              InvoiceService.previewInvoice(
+                context,
+                orderId: orderId,
+                totalAmount: amount,
+                items: items,
+                paymentMethod: paymentMethod,
+                customerName: 'Customer',
+                customerEmail: '',
+                orderDate: timestamp,
+              );
             },
           ),
         ],

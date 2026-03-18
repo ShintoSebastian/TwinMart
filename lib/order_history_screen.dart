@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:twinmart_app/theme/twinmart_theme.dart';
+import 'package:twinmart_app/invoice_service.dart';
 import 'product_details_screen.dart';
 import 'dart:ui' as ui;
 
@@ -417,6 +418,36 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                               const Text("Payment", style: TextStyle(color: Colors.grey, fontSize: 11)),
                               Text(paymentMethod.split(' ')[0], style: const TextStyle(fontWeight: FontWeight.w600)),
                             ],
+                          ),
+                          // Download Invoice Button
+                          GestureDetector(
+                            onTap: () {
+                              final user = FirebaseAuth.instance.currentUser;
+                              // Build items list from resolved transaction data
+                              final invoiceItems = items.map((txItem) => {
+                                'name': txItem['productName'] ?? 'Item',
+                                'quantity': txItem['quantity'] ?? 1,
+                                'price': (txItem['price'] ?? 0).toDouble(),
+                              }).toList();
+                              InvoiceService.previewInvoice(
+                                context,
+                                orderId: doc.id,
+                                totalAmount: amount,
+                                items: invoiceItems,
+                                paymentMethod: paymentMethod,
+                                customerName: user?.displayName ?? 'Customer',
+                                customerEmail: user?.email ?? '',
+                                orderDate: date,
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: TwinMartTheme.brandGreen.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.picture_as_pdf_rounded, color: TwinMartTheme.brandGreen, size: 20),
+                            ),
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
