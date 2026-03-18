@@ -117,33 +117,30 @@ class CartProvider with ChangeNotifier {
     return FirebaseFirestore.instance.collection('users').doc(uid).collection('cart');
   }
 
-  // 3. Add to Cart with Cloud Sync
+  // 3. Add to Cart with Cloud Sync (Optimistic UI)
   Future<void> addToCart(Map<String, dynamic> product) async {
     final String productId = product['id']?.toString() ?? '';
     if (productId.isEmpty) return;
 
-    final ref = _cartRef;
-    if (ref == null) {
-      // If not logged in, we still add to local state for guest mode if enabled
-      // But based on user request, we focus on login persistence.
-      _updateLocalCart(product, productId);
-      return;
-    }
+    // 1. Optimistic Update (Update local state immediately for Premium feel)
+    _updateLocalCart(product, productId);
 
-    if (_items.containsKey(productId)) {
-      await ref.doc(productId).update({
-        'quantity': FieldValue.increment(1),
-      });
-    } else {
-      final newItem = CartItem(
-        id: productId,
-        name: product['name'] ?? 'Unknown Product',
-        price: (product['price'] ?? 0.0).toDouble(),
-        image: product['image'] ?? product['imageUrl'] ?? '🛍️',
-        category: product['category'] ?? 'Miscellaneous',
-        quantity: 1,
-      );
-      await ref.doc(productId).set(newItem.toMap());
+    final ref = _cartRef;
+    if (ref == null) return; // If guest mode, we're done after local update
+
+    try {
+      if (_items[productId]!.quantity > 1) {
+        // Document exists in local state with qty > 1, so update in Cloud
+        await ref.doc(productId).update({
+          'quantity': _items[productId]!.quantity,
+        });
+      } else {
+        // New item, set in Cloud
+        await ref.doc(productId).set(_items[productId]!.toMap());
+      }
+    } catch (e) {
+      debugPrint("❌ [CartProvider] Error adding to Cloud: $e");
+      // Rollback or handle error if needed, but keeping local state usually feels better
     }
   }
 
@@ -180,18 +177,22 @@ class CartProvider with ChangeNotifier {
   Future<void> removeSingleItem(String productId) async {
     if (!_items.containsKey(productId)) return;
 
-    final ref = _cartRef;
-    if (ref == null) {
-      _removeSingleItemLocal(productId);
-      return;
-    }
+    // 1. Optimistic Update
+    _removeSingleItemLocal(productId);
 
-    if (_items[productId]!.quantity > 1) {
-      await ref.doc(productId).update({
-        'quantity': FieldValue.increment(-1),
-      });
-    } else {
-      await ref.doc(productId).delete();
+    final ref = _cartRef;
+    if (ref == null) return;
+
+    try {
+      if (_items.containsKey(productId)) {
+        await ref.doc(productId).update({
+          'quantity': _items[productId]!.quantity,
+        });
+      } else {
+        await ref.doc(productId).delete();
+      }
+    } catch (e) {
+      debugPrint("❌ [CartProvider] Error removing from Cloud: $e");
     }
   }
 
@@ -204,6 +205,7 @@ class CartProvider with ChangeNotifier {
           name: existing.name,
           price: existing.price,
           image: existing.image,
+          category: existing.category,
           quantity: existing.quantity - 1,
         ),
       );

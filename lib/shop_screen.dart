@@ -586,7 +586,7 @@ class _ProductCard extends StatelessWidget {
                             style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900),
                           ),
                         ),
-                        _buildCartButton(cart, productId, price, imageUrl),
+                        _buildCartButton(context, cart, productId, price, imageUrl),
                       ],
                     ),
                     const Padding(
@@ -645,11 +645,12 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCartButton(CartProvider cart, String productId, double price, String? imageUrl) {
+  Widget _buildCartButton(BuildContext context, CartProvider cart, String productId, double price, String? imageUrl) {
     final int qty = cart.items[productId]?.quantity ?? 0;
     
     if (qty == 0) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           cart.addToCart({
             'id': productId,
@@ -658,6 +659,15 @@ class _ProductCard extends StatelessWidget {
             'image': imageUrl ?? "🛍️",
             'category': product['category'],
           });
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("${product['name']} added to cart"),
+              backgroundColor: green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 1),
+            ),
+          );
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -891,7 +901,7 @@ class _ProductListTile extends StatelessWidget {
                           ),
                         ],
                       ),
-                      _buildCartButton(cart, productId, price, imageUrl),
+                      _buildCartButton(context, cart, productId, price, imageUrl),
                     ],
                   ),
                 ],
@@ -903,11 +913,12 @@ class _ProductListTile extends StatelessWidget {
     );
   }
 
-  Widget _buildCartButton(CartProvider cart, String productId, double price, String? imageUrl) {
+  Widget _buildCartButton(BuildContext context, CartProvider cart, String productId, double price, String? imageUrl) {
     final int qty = cart.items[productId]?.quantity ?? 0;
     
     if (qty == 0) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           cart.addToCart({
             'id': productId,
@@ -916,6 +927,15 @@ class _ProductListTile extends StatelessWidget {
             'image': imageUrl ?? "🛍️",
             'category': product['category'],
           });
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("${product['name']} added to cart"),
+              backgroundColor: green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 1),
+            ),
+          );
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

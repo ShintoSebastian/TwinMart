@@ -9,8 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+import 'razorpay/razorpay_web_service.dart';
 
 class PaymentMethodsScreen extends StatefulWidget {
   final double amount;
@@ -83,7 +82,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       // Cash on Delivery
       _executeFirebaseTransaction("TXN-${DateTime.now().millisecondsSinceEpoch}");
     } else if (kIsWeb) {
-      // ✅ WEB FIX: Use JS Bridge to avoid MissingPluginException
+      // ✅ WEB FIX: Use Conditional Service to avoid 'dart:js' error on mobile
       try {
         debugPrint("🌐 Using Web JS Bridge for Razorpay...");
         var options = {
@@ -95,35 +94,33 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             'contact': '9876543210',
             'email': user.email ?? 'dummy@twinmart.com'
           },
-          'capture': 1, // ✅ ADDED: Auto-capture payment immediately
-          'handler': js.allowInterop((response) {
-            // Convert JS response back to Dart
+          'capture': 1,
+        };
+
+        RazorpayWebService.openRazorpayWeb(
+          options: options,
+          onSuccess: (response) {
             _handlePaymentSuccess(PaymentSuccessResponse(
               response['razorpay_payment_id'],
               response['razorpay_order_id'],
               response['razorpay_signature'],
-              {}, // Add 4th argument: data
+              {}, 
             ));
-          }),
-          'modal': {
-            'ondismiss': js.allowInterop(() {
-              debugPrint("🚪 Razorpay Modal Dismissed");
-              if (mounted) setState(() => _isLoading = false);
-            }),
-            'onerror': js.allowInterop((err) {
-              debugPrint("🔥 Razorpay Modal Error: $err");
-              if (mounted) {
-                setState(() => _isLoading = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Payment Modal Error: $err"), backgroundColor: Colors.red),
-                );
-              }
-            }),
-          }
-        };
-
-        var rzp = js.JsObject(js.context['Razorpay'], [js.JsObject.jsify(options)]);
-        rzp.callMethod('open');
+          },
+          onDismiss: () {
+            debugPrint("門 Razorpay Modal Dismissed");
+            if (mounted) setState(() => _isLoading = false);
+          },
+          onError: (err) {
+            debugPrint("🔥 Razorpay Modal Error: $err");
+            if (mounted) {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Payment Modal Error: $err"), backgroundColor: Colors.red),
+              );
+            }
+          },
+        );
       } catch (e) {
         debugPrint("🔥 Web Payment Error: $e");
         if (mounted) setState(() => _isLoading = false);

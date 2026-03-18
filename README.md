@@ -11,11 +11,12 @@ TwinMart is a hybrid smart shopping application designed to unify online and off
 
 # Technologies Used
 
-- Frontend: Flutter (Cross-platform Mobile UI) 
-- Backend: Python Django 
-- Database: Firebase 
-- Scanning: Barcode Scanner (ML Kit) 
-- Payments: Razorpay Integration 
+- Frontend: Flutter (Cross-platform Mobile & Desktop), Next.js (Web)
+- Backend: Firebase (Serverless BaaS)
+- Database: Cloud Firestore (NoSQL)
+- Scanning: mobile_scanner (QR & Barcode)
+- Payments: Razorpay Integration
+- State Management: Provider
 
 # Student Information
 
