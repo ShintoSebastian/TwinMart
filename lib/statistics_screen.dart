@@ -68,12 +68,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     String lower = cat.toLowerCase();
     if (lower.contains("grocer")) return Colors.red;
     if (lower.contains("food")) return Colors.orange;
-    if (lower.contains("digit")) return Colors.teal;
+    if (lower.contains("digit") || lower.contains("tech")) return Colors.teal;
     if (lower.contains("utilit")) return Colors.orangeAccent;
     if (lower.contains("entertain")) return Colors.purple;
-    if (lower.contains("fruit")) return Colors.redAccent;
+    if (lower.contains("fruit")) return Colors.deepOrange;
+    if (lower.contains("veg")) return Colors.pink;
     if (lower.contains("fashion")) return Colors.blueAccent;
-    if (lower.contains("home")) return Colors.indigo;
+    if (lower.contains("home") || lower.contains("applian")) return Colors.indigo;
     if (lower.contains("beauty")) return Colors.pinkAccent;
     if (lower.contains("toy")) return Colors.amber;
     return _fallbackPalette[cat.hashCode.abs() % _fallbackPalette.length];
@@ -267,6 +268,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (c.contains('digital') || c.contains('digit')) return 'digital';
     if (c.contains('grocery') || c.contains('groc')) return 'grocery';
     if (c.contains('fruit')) return 'Fruits';
+    if (c.contains('veg')) return 'vegetables';
     if (c.contains('applian')) return 'home appliances';
     
     if (n.contains('tv') || n.contains('watch') || n.contains('vision') || 
@@ -1094,7 +1096,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         children: [
           SizedBox(
             height: 140, width: 140,
-            child: PieChart(PieChartData(sectionsSpace: 4, centerSpaceRadius: 35, sections: _buildChartSections())),
+            child: PieChart(PieChartData(sectionsSpace: 0, centerSpaceRadius: 35, sections: _buildChartSections())),
           ),
           const SizedBox(width: 25),
           Expanded(
@@ -1130,9 +1132,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   List<PieChartSectionData> _buildChartSections() {
-    if (categorySpending.isEmpty) return [PieChartSectionData(color: Colors.grey[300], value: 1, title: '', radius: 25)];
-    return categorySpending.entries.map((entry) {
-      return PieChartSectionData(color: _getCatColor(entry.key), value: entry.value, title: '', radius: 28, showTitle: false);
+    if (categorySpending.isEmpty) {
+      return [PieChartSectionData(color: Colors.grey[300], value: 1, title: '', radius: 32)];
+    }
+    
+    // Calculate a visual total for normalization
+    double visualTotal = filteredSpent > 0 ? filteredSpent : 1.0;
+    
+    // We sort entries by value for a more stable visual presentation
+    final entries = categorySpending.entries.toList()..sort((a,b) => b.value.compareTo(a.value));
+
+    return entries.map((entry) {
+      double displayValue = entry.value;
+      
+      // Mandatory minimum weight (10% of total) for visibility
+      // This ensures ₹14 looks just as distinct as ₹32000 in a donut chart
+      if (displayValue > 0) {
+        double minSize = visualTotal * 0.10;
+        if (displayValue < minSize) displayValue = minSize;
+      }
+      
+      return PieChartSectionData(
+        color: _getCatColor(entry.key), 
+        value: displayValue, 
+        title: '', 
+        radius: 32, 
+        showTitle: false,
+        borderSide: BorderSide(
+          color: Theme.of(context).cardColor, 
+          width: 2.0, // High-quality divider
+        ),
+      );
     }).toList();
   }
 

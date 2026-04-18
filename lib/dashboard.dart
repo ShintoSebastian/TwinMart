@@ -584,7 +584,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                final data = budgetSnapshot.data!.data() as Map<String, dynamic>?;
                if (data != null) {
                  budget = (data['budget_limit'] ?? 5000.0).toDouble();
-                 savings = (data['total_savings'] ?? 0.0).toDouble();
                }
             }
 
@@ -651,7 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       children: [
                                         const Icon(Icons.stars, color: Colors.amberAccent, size: 20),
                                         const SizedBox(width: 5),
-                                        Text("₹${savings.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                        Text("₹${(budget - offlineSpent).clamp(0.0, double.infinity).toInt()}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ],
